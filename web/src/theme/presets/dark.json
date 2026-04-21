@@ -1,0 +1,25 @@
+{
+  "id": "dark",
+  "name": "暗黑风格",
+  "appearance": "dark",
+  "token": {
+    "colorPrimary": "#60a5fa",
+    "colorInfo": "#60a5fa",
+    "colorSuccess": "#34d399",
+    "colorWarning": "#fbbf24",
+    "colorError": "#f87171",
+    "colorBgBase": "#07111f",
+    "borderRadius": 18,
+    "fontFamily": "\"Sarasa Gothic SC\", \"Noto Sans SC\", sans-serif"
+  },
+  "components": {
+    "Layout": {
+      "headerBg": "rgba(7,17,31,0.82)",
+      "bodyBg": "transparent"
+    },
+    "Card": {
+      "borderRadiusLG": 24
+    }
+  }
+}
+

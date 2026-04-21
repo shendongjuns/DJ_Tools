@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.note.NoteAttachmentMapper">
+
+    <resultMap id="NoteAttachmentResultMap" type="com.djtools.note.NoteAttachment">
+        <id property="id" column="id"/>
+        <result property="noteId" column="note_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="objectName" column="object_name"/>
+        <result property="originalFilename" column="original_filename"/>
+        <result property="contentType" column="content_type"/>
+        <result property="sizeBytes" column="size_bytes"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByNoteId" resultMap="NoteAttachmentResultMap">
+        SELECT *
+        FROM note_attachment
+        WHERE note_id = #{noteId}
+          AND user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="NoteAttachmentResultMap">
+        SELECT *
+        FROM note_attachment
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.note.NoteAttachment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO note_attachment (
+            note_id,
+            user_id,
+            object_name,
+            original_filename,
+            content_type,
+            size_bytes
+        )
+        VALUES (
+            #{noteId},
+            #{userId},
+            #{objectName},
+            #{originalFilename},
+            #{contentType},
+            #{sizeBytes}
+        )
+    </insert>
+
+    <delete id="delete">
+        DELETE
+        FROM note_attachment
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </delete>
+</mapper>

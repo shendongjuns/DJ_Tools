@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.notification.NotificationMapper">
+
+    <resultMap id="NotificationResultMap" type="com.djtools.notification.NotificationRecord">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="type" column="type"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="relatedType" column="related_type"/>
+        <result property="relatedId" column="related_id"/>
+        <result property="remindAt" column="remind_at"/>
+        <result property="readFlag" column="read_flag"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findLatestByUser" resultMap="NotificationResultMap">
+        SELECT *
+        FROM notification
+        WHERE user_id = #{userId}
+        ORDER BY read_flag ASC, created_at DESC
+        LIMIT 50
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*)
+        FROM notification
+        WHERE user_id = #{userId}
+          AND read_flag = FALSE
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.notification.NotificationRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notification (
+            user_id,
+            type,
+            title,
+            content,
+            related_type,
+            related_id,
+            remind_at,
+            read_flag
+        )
+        VALUES (
+            #{userId},
+            #{type},
+            #{title},
+            #{content},
+            #{relatedType},
+            #{relatedId},
+            #{remindAt},
+            #{readFlag}
+        )
+    </insert>
+
+    <update id="markRead">
+        UPDATE notification
+        SET read_flag = TRUE
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <select id="countExists" resultType="long">
+        SELECT COUNT(*)
+        FROM notification
+        WHERE user_id = #{userId}
+          AND type = #{type}
+          AND related_type = #{relatedType}
+          AND related_id = #{relatedId}
+    </select>
+</mapper>

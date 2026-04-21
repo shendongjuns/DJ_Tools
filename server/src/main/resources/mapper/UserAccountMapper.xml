@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.user.UserAccountMapper">
+
+    <resultMap id="UserAccountResultMap" type="com.djtools.user.UserAccount">
+        <id property="id" column="id"/>
+        <result property="nickname" column="nickname"/>
+        <result property="loginAccount" column="login_account"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="passwordChanged" column="password_changed"/>
+        <result property="forcePasswordChange" column="force_password_change"/>
+        <result property="themeId" column="theme_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findById" resultMap="UserAccountResultMap">
+        SELECT *
+        FROM user_account
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByLoginAccount" resultMap="UserAccountResultMap">
+        SELECT *
+        FROM user_account
+        WHERE login_account = #{loginAccount}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        FROM user_account
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.user.UserAccount" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_account (
+            nickname,
+            login_account,
+            password_hash,
+            password_changed,
+            force_password_change,
+            theme_id
+        )
+        VALUES (
+            #{nickname},
+            #{loginAccount},
+            #{passwordHash},
+            #{passwordChanged},
+            #{forcePasswordChange},
+            #{themeId}
+        )
+    </insert>
+
+    <update id="updateProfile" parameterType="com.djtools.user.UserAccount">
+        UPDATE user_account
+        SET nickname = #{nickname},
+            login_account = #{loginAccount},
+            theme_id = #{themeId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword" parameterType="com.djtools.user.UserAccount">
+        UPDATE user_account
+        SET password_hash = #{passwordHash},
+            password_changed = #{passwordChanged},
+            force_password_change = #{forcePasswordChange},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+</mapper>

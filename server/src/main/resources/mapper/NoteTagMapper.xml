@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.note.NoteTagMapper">
+
+    <resultMap id="NoteTagResultMap" type="com.djtools.note.NoteTag">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="name" column="name"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findAllByUser" resultMap="NoteTagResultMap">
+        SELECT *
+        FROM note_tag
+        WHERE user_id = #{userId}
+        ORDER BY name ASC
+    </select>
+
+    <select id="findByName" resultMap="NoteTagResultMap">
+        SELECT *
+        FROM note_tag
+        WHERE user_id = #{userId}
+          AND name = #{name}
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.note.NoteTag" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO note_tag (user_id, name)
+        VALUES (#{userId}, #{name})
+        ON CONFLICT (user_id, name) DO NOTHING
+    </insert>
+
+    <select id="findByNoteId" resultMap="NoteTagResultMap">
+        SELECT t.*
+        FROM note_tag t
+        INNER JOIN note_tag_rel r ON t.id = r.tag_id
+        WHERE r.note_id = #{noteId}
+        ORDER BY t.name ASC
+    </select>
+</mapper>

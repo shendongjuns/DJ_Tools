@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.note.NoteMapper">
+
+    <resultMap id="NoteResultMap" type="com.djtools.note.Note">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="folderId" column="folder_id"/>
+        <result property="folderName" column="folder_name"/>
+        <result property="title" column="title"/>
+        <result property="summary" column="summary"/>
+        <result property="content" column="content"/>
+        <result property="shared" column="is_shared"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="BaseSelect">
+        SELECT n.*, f.name AS folder_name
+        FROM note n
+        LEFT JOIN note_folder f ON n.folder_id = f.id
+    </sql>
+
+    <select id="findAll" resultMap="NoteResultMap">
+        <include refid="BaseSelect"/>
+        WHERE n.user_id = #{userId}
+        <if test="folderId != null">
+            AND n.folder_id = #{folderId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                n.title ILIKE CONCAT('%', #{keyword}, '%')
+                OR COALESCE(n.summary, '') ILIKE CONCAT('%', #{keyword}, '%')
+                OR n.content ILIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="tagName != null and tagName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM note_tag_rel r
+                INNER JOIN note_tag t ON r.tag_id = t.id
+                WHERE r.note_id = n.id
+                  AND t.name = #{tagName}
+            )
+        </if>
+        ORDER BY n.updated_at DESC
+    </select>
+
+    <select id="findById" resultMap="NoteResultMap">
+        <include refid="BaseSelect"/>
+        WHERE n.id = #{id}
+          AND n.user_id = #{userId}
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.note.Note" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO note (user_id, folder_id, title, summary, content, is_shared)
+        VALUES (#{userId}, #{folderId}, #{title}, #{summary}, #{content}, #{shared})
+    </insert>
+
+    <update id="update" parameterType="com.djtools.note.Note">
+        UPDATE note
+        SET folder_id = #{folderId},
+            title = #{title},
+            summary = #{summary},
+            content = #{content},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="updateShared">
+        UPDATE note
+        SET is_shared = #{shared},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <delete id="delete">
+        DELETE
+        FROM note
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </delete>
+
+    <select id="findLatest" resultMap="NoteResultMap">
+        <include refid="BaseSelect"/>
+        WHERE n.user_id = #{userId}
+        ORDER BY n.updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*)
+        FROM note
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="search" resultMap="NoteResultMap">
+        <include refid="BaseSelect"/>
+        WHERE n.user_id = #{userId}
+          AND (
+              n.title ILIKE CONCAT('%', #{keyword}, '%')
+              OR COALESCE(n.summary, '') ILIKE CONCAT('%', #{keyword}, '%')
+              OR n.content ILIKE CONCAT('%', #{keyword}, '%')
+              OR EXISTS (
+                  SELECT 1
+                  FROM note_tag_rel r
+                  INNER JOIN note_tag t ON r.tag_id = t.id
+                  WHERE r.note_id = n.id
+                    AND t.name ILIKE CONCAT('%', #{keyword}, '%')
+              )
+              OR EXISTS (
+                  SELECT 1
+                  FROM note_folder f2
+                  WHERE f2.id = n.folder_id
+                    AND f2.name ILIKE CONCAT('%', #{keyword}, '%')
+              )
+          )
+        ORDER BY similarity(n.title, #{keyword}) DESC, n.updated_at DESC
+        LIMIT 10
+    </select>
+</mapper>

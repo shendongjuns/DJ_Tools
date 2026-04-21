@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: dj-tools-server
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/dj_tools}
+    username: ${DB_USERNAME:djtools}
+    password: ${DB_PASSWORD:djtools123}
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 30MB
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    default-statement-timeout: 10
+  type-aliases-package: com.djtools
+
+logging:
+  file:
+    path: ${LOG_FILE_PATH:./logs}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  cors:
+    allowed-origins:
+      - ${WEB_ORIGIN:http://localhost:5173}
+      - ${WEB_ORIGIN_DOCKER:http://localhost:8088}
+  jwt:
+    issuer: dj-tools
+    access-token-expire-minutes: 120
+    refresh-token-expire-days: 14
+    secret: ${JWT_SECRET:change-me-please-change-me-please-change-me}
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+    bucket: ${MINIO_BUCKET:dj-tools-attachments}
+  docker:
+    host: ${DOCKER_HOST:unix:///var/run/docker.sock}

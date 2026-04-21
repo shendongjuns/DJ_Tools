@@ -1,0 +1,24 @@
+{
+  "id": "cartoon",
+  "name": "卡通风格",
+  "appearance": "light",
+  "token": {
+    "colorPrimary": "#ff7b54",
+    "colorInfo": "#ff7b54",
+    "colorSuccess": "#38b46a",
+    "colorWarning": "#ffb703",
+    "colorError": "#ef476f",
+    "borderRadius": 22,
+    "fontFamily": "\"ZCOOL KuaiLe\", \"LXGW WenKai Screen\", \"PingFang SC\", sans-serif"
+  },
+  "components": {
+    "Layout": {
+      "headerBg": "rgba(255,248,224,0.85)",
+      "bodyBg": "transparent"
+    },
+    "Card": {
+      "borderRadiusLG": 28
+    }
+  }
+}
+

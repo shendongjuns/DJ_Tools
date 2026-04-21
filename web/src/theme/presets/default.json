@@ -1,0 +1,24 @@
+{
+  "id": "default",
+  "name": "默认主题",
+  "appearance": "light",
+  "token": {
+    "colorPrimary": "#2563eb",
+    "colorInfo": "#2563eb",
+    "colorSuccess": "#16a34a",
+    "colorWarning": "#f59e0b",
+    "colorError": "#dc2626",
+    "borderRadius": 18,
+    "fontFamily": "\"LXGW WenKai Screen\", \"Noto Sans SC\", \"PingFang SC\", sans-serif"
+  },
+  "components": {
+    "Layout": {
+      "headerBg": "rgba(255,255,255,0.8)",
+      "bodyBg": "transparent"
+    },
+    "Card": {
+      "borderRadiusLG": 24
+    }
+  }
+}
+

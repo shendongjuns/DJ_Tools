@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.note.NoteFolderMapper">
+
+    <resultMap id="NoteFolderResultMap" type="com.djtools.note.NoteFolder">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="name" column="name"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAllByUser" resultMap="NoteFolderResultMap">
+        SELECT *
+        FROM note_folder
+        WHERE user_id = #{userId}
+        ORDER BY sort_order ASC, created_at ASC
+    </select>
+
+    <select id="findById" resultMap="NoteFolderResultMap">
+        SELECT *
+        FROM note_folder
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.note.NoteFolder" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO note_folder (user_id, name, sort_order)
+        VALUES (#{userId}, #{name}, #{sortOrder})
+    </insert>
+</mapper>

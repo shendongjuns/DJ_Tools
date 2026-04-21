@@ -1,0 +1,24 @@
+{
+  "id": "glass",
+  "name": "玻璃风格",
+  "appearance": "light",
+  "token": {
+    "colorPrimary": "#2a6fdb",
+    "colorInfo": "#2a6fdb",
+    "colorSuccess": "#0f9d58",
+    "colorWarning": "#f5a524",
+    "colorError": "#d7263d",
+    "borderRadius": 22,
+    "fontFamily": "\"Alibaba PuHuiTi 3.0\", \"Noto Sans SC\", sans-serif"
+  },
+  "components": {
+    "Layout": {
+      "headerBg": "rgba(255,255,255,0.18)",
+      "bodyBg": "transparent"
+    },
+    "Card": {
+      "borderRadiusLG": 28
+    }
+  }
+}
+

@@ -1,0 +1,24 @@
+{
+  "id": "illustration",
+  "name": "插画风格",
+  "appearance": "light",
+  "token": {
+    "colorPrimary": "#0f766e",
+    "colorInfo": "#0f766e",
+    "colorSuccess": "#15803d",
+    "colorWarning": "#d97706",
+    "colorError": "#dc2626",
+    "borderRadius": 20,
+    "fontFamily": "\"FZLanTingHeiS\", \"Noto Serif SC\", \"PingFang SC\", sans-serif"
+  },
+  "components": {
+    "Layout": {
+      "headerBg": "rgba(248,244,230,0.82)",
+      "bodyBg": "transparent"
+    },
+    "Card": {
+      "borderRadiusLG": 26
+    }
+  }
+}
+

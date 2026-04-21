@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.djtools.todo.TodoMapper">
+
+    <resultMap id="TodoResultMap" type="com.djtools.todo.TodoItem">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="dueAt" column="due_at"/>
+        <result property="remindAt" column="remind_at"/>
+        <result property="status" column="status"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="deleted" column="deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAllByUser" resultMap="TodoResultMap">
+        SELECT *
+        FROM todo_item
+        WHERE user_id = #{userId}
+          AND deleted = FALSE
+        <if test="keyword != null and keyword != ''">
+            AND (
+                title ILIKE CONCAT('%', #{keyword}, '%')
+                OR COALESCE(description, '') ILIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY
+            CASE WHEN status = 'COMPLETED' THEN 2 ELSE 1 END,
+            due_at NULLS LAST,
+            created_at DESC
+    </select>
+
+    <select id="findById" resultMap="TodoResultMap">
+        SELECT *
+        FROM todo_item
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted = FALSE
+    </select>
+
+    <insert id="insert" parameterType="com.djtools.todo.TodoItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO todo_item (user_id, title, description, due_at, remind_at, status, completed_at)
+        VALUES (#{userId}, #{title}, #{description}, #{dueAt}, #{remindAt}, #{status}, #{completedAt})
+    </insert>
+
+    <update id="update" parameterType="com.djtools.todo.TodoItem">
+        UPDATE todo_item
+        SET title = #{title},
+            description = #{description},
+            due_at = #{dueAt},
+            remind_at = #{remindAt},
+            status = #{status},
+            completed_at = #{completedAt},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="updateStatus" parameterType="com.djtools.todo.TodoItem">
+        UPDATE todo_item
+        SET status = #{status},
+            completed_at = #{completedAt},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="softDelete">
+        UPDATE todo_item
+        SET deleted = TRUE,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <select id="findNeedReminder" resultMap="TodoResultMap">
+        SELECT *
+        FROM todo_item
+        WHERE user_id = #{userId}
+          AND deleted = FALSE
+          AND status != 'COMPLETED'
+          AND remind_at IS NOT NULL
+          AND remind_at &lt;= CURRENT_TIMESTAMP
+    </select>
+
+    <select id="findLatest" resultMap="TodoResultMap">
+        SELECT *
+        FROM todo_item
+        WHERE user_id = #{userId}
+          AND deleted = FALSE
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countUnfinished" resultType="long">
+        SELECT COUNT(*)
+        FROM todo_item
+        WHERE user_id = #{userId}
+          AND deleted = FALSE
+          AND status != 'COMPLETED'
+    </select>
+
+    <select id="search" resultMap="TodoResultMap">
+        SELECT *
+        FROM todo_item
+        WHERE user_id = #{userId}
+          AND deleted = FALSE
+          AND (
+              title ILIKE CONCAT('%', #{keyword}, '%')
+              OR COALESCE(description, '') ILIKE CONCAT('%', #{keyword}, '%')
+          )
+        ORDER BY similarity(title, #{keyword}) DESC, updated_at DESC
+        LIMIT 10
+    </select>
+</mapper>

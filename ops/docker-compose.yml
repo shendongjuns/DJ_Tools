@@ -1,0 +1,95 @@
+services:
+  postgres:
+    image: postgres:18.3-alpine3.22
+    container_name: dj-tools-postgres
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dj_tools}
+      POSTGRES_USER: ${POSTGRES_USER:-djtools}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-djtools123}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-djtools} -d ${POSTGRES_DB:-dj_tools}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: dj-tools-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:9000/minio/health/live >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    image: dj-tools/server:1.0.0
+    container_name: dj-tools-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dj_tools}
+      DB_USERNAME: ${POSTGRES_USER:-djtools}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-djtools123}
+      JWT_SECRET: ${JWT_SECRET:-change-me-please-change-me-please-change-me}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-dj-tools-attachments}
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-8088}
+      WEB_ORIGIN_DOCKER: http://web
+      DOCKER_HOST: unix:///var/run/docker.sock
+      LOG_FILE_PATH: /app/logs
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./logs/server:/app/logs
+
+  web:
+    build:
+      context: ..
+      dockerfile: ./web/Dockerfile
+    image: dj-tools/web:1.0.0
+    container_name: dj-tools-web
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "${WEB_PORT:-8088}:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+volumes:
+  postgres-data:
+  minio-data:
