@@ -22,6 +22,13 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findFirstUserId" resultType="long">
+        SELECT id
+        FROM user_account
+        ORDER BY id
+        LIMIT 1
+    </select>
+
     <select id="findByLoginAccount" resultMap="UserAccountResultMap">
         SELECT *
         FROM user_account

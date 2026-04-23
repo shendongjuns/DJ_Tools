@@ -12,8 +12,8 @@ public record TodoResponse(
         boolean overdue,
         boolean unfinished,
         OffsetDateTime completedAt,
+        OffsetDateTime cancelledAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
 }
-

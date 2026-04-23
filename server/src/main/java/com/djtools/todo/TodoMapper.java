@@ -7,7 +7,13 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface TodoMapper {
 
-    List<TodoItem> findAllByUser(@Param("userId") Long userId, @Param("keyword") String keyword);
+    int updateExpiredStatuses(@Param("userId") Long userId);
+
+    List<TodoItem> findAllByUser(
+            @Param("userId") Long userId,
+            @Param("keyword") String keyword,
+            @Param("statuses") List<TodoStatus> statuses
+    );
 
     TodoItem findById(@Param("id") Long id, @Param("userId") Long userId);
 

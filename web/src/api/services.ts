@@ -14,6 +14,7 @@ import type {
   SearchResult,
   SharedNote,
   TodoItem,
+  TodoStatus,
   UserProfile,
 } from '../types';
 
@@ -30,7 +31,7 @@ export const authApi = {
 
 export const userApi = {
   me: () => apiClient.get<UserProfile>('/api/me'),
-  updateProfile: (payload: { nickname: string; loginAccount: string; themeId: string }) =>
+  updateProfile: (payload: { nickname: string; loginAccount: string }) =>
     apiClient.put<UserProfile>('/api/me/profile', payload),
   changePassword: (payload: { oldPassword: string; newPassword: string }) =>
     apiClient.put<void>('/api/me/password', payload),
@@ -49,10 +50,18 @@ export const notificationApi = {
 };
 
 export const todoApi = {
-  list: (keyword = '') => apiClient.get<TodoItem[]>(`/api/todos${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`),
+  list: (keyword = '', statuses: TodoStatus[] = ['PENDING', 'IN_PROGRESS']) => {
+    const searchParams = new URLSearchParams();
+    if (keyword) searchParams.set('keyword', keyword);
+    if (statuses.length > 0) searchParams.set('statuses', statuses.join(','));
+    return apiClient.get<TodoItem[]>(`/api/todos${searchParams.size ? `?${searchParams.toString()}` : ''}`);
+  },
   create: (payload: Record<string, unknown>) => apiClient.post<TodoItem>('/api/todos', payload),
   update: (id: number, payload: Record<string, unknown>) => apiClient.put<TodoItem>(`/api/todos/${id}`, payload),
-  updateStatus: (id: number, status: string) => apiClient.patch<TodoItem>(`/api/todos/${id}/status`, { status }),
+  updateStatus: (
+    id: number,
+    payload: { status: TodoStatus; completedAt?: string | null; cancelledAt?: string | null },
+  ) => apiClient.patch<TodoItem>(`/api/todos/${id}/status`, payload),
   remove: (id: number) => apiClient.delete<void>(`/api/todos/${id}`),
 };
 
@@ -87,4 +96,3 @@ export const searchApi = {
   search: (scope: string, keyword: string) =>
     apiClient.get<SearchResult[]>(`/api/search?scope=${scope}&keyword=${encodeURIComponent(keyword)}`),
 };
-

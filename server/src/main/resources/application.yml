@@ -1,59 +1,101 @@
+# Spring Boot 基础配置。
 spring:
   application:
+    # 应用名称，主要用于日志、监控和 Spring 上下文标识。
     name: dj-tools-server
   datasource:
+    # 当前项目固定使用 PostgreSQL 驱动。
     driver-class-name: org.postgresql.Driver
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/dj_tools}
-    username: ${DB_USERNAME:djtools}
-    password: ${DB_PASSWORD:djtools123}
-  sql:
-    init:
-      mode: always
-      encoding: UTF-8
+    # 数据库连接地址。
+    # 本机开发默认连接 localhost，Docker Compose 场景下通过环境变量把主机名覆盖为 postgres。
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dj_tools}
+    # 数据库登录用户名。
+    username: ${POSTGRES_USER:djtools}
+    # 数据库登录密码，生产环境务必通过环境变量覆盖默认值。
+    password: ${POSTGRES_PASSWORD:djtools123}
+  flyway:
+    # 启用 Flyway 数据库版本迁移。
+    enabled: true
+    # Flyway 迁移脚本所在目录，当前统一放在 classpath:db/migration。不建议修改。
+    locations: classpath:db/migration
+    # 迁移sql脚本文件名称的前缀，默认V
+    sql-migration-prefix: V
+    # 迁移sql脚本文件名称的分隔符，默认2个下划线__
+    sql-migration-separator: __
+    # 迁移sql脚本文件名称的后缀
+    sql-migration-suffixes: .sql
   servlet:
     multipart:
+      # 单个上传文件大小上限。
       max-file-size: 20MB
+      # 单次请求总上传大小上限。
       max-request-size: 30MB
 
 server:
+  # 后端 HTTP 服务端口。
   port: ${SERVER_PORT:8080}
   servlet:
+    # 服务上下文路径，当前保持根路径，便于前后端和反向代理统一访问。
     context-path: /
 
+# MyBatis 配置。
 mybatis:
+  # Mapper XML 扫描路径，当前所有 SQL 都集中维护在 resources/mapper 下。
   mapper-locations: classpath*:mapper/*.xml
   configuration:
+    # 数据库下划线字段自动映射到 Java 驼峰属性，例如 created_at -> createdAt。
     map-underscore-to-camel-case: true
+    # SQL 默认超时时间，单位秒，避免慢查询长时间阻塞请求。
     default-statement-timeout: 10
+  # 类型别名扫描包，简化 Mapper XML 中的类型书写。
   type-aliases-package: com.djtools
 
+# 日志配置。
 logging:
   file:
+    # 后端文件日志输出目录。
+    # Docker Compose 场景下会挂载到 ops/logs/server，本机运行时默认落到项目根目录 logs。
     path: ${LOG_FILE_PATH:./logs}
 
+# Spring Boot Actuator 监控配置。
 management:
   endpoints:
     web:
       exposure:
+        # 暴露健康检查、基础信息、指标与 Prometheus 指标端点。
         include: health,info,metrics,prometheus
   endpoint:
     health:
+      # 健康检查返回完整明细，便于首页监控与运维排障。
       show-details: always
 
+# 自定义业务配置。
 app:
   cors:
+    # 允许访问后端的前端来源地址。
+    # 第一个用于本机 Vite 开发环境，第二个用于 Docker Compose 下的 Web 访问地址。
     allowed-origins:
       - ${WEB_ORIGIN:http://localhost:5173}
       - ${WEB_ORIGIN_DOCKER:http://localhost:8088}
   jwt:
+    # JWT 签发者标识。
     issuer: dj-tools
+    # Access Token 有效期，单位分钟。
     access-token-expire-minutes: 120
+    # Refresh Token 有效期，单位天。
     refresh-token-expire-days: 14
+    # JWT 签名密钥，生产环境必须替换为高强度随机值。
     secret: ${JWT_SECRET:change-me-please-change-me-please-change-me}
   minio:
+    # MinIO 服务访问地址。
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    # MinIO 访问账号。
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    # MinIO 访问密码。
     secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+    # 附件统一存储的 bucket 名称。
     bucket: ${MINIO_BUCKET:dj-tools-attachments}
   docker:
+    # Docker Socket 或 Docker Host 地址。
+    # 在容器内挂载 docker.sock 时用于采集容器指标；本机非容器运行时拿不到也允许自动降级。
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}

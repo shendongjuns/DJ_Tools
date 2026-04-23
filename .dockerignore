@@ -1,0 +1,19 @@
+.git
+.gitignore
+.codex
+
+# Docker 构建不需要带上运行时数据和日志目录。
+ops/data
+ops/logs
+
+# Java 构建产物由镜像内重新生成。
+server/target
+
+# 前端依赖和构建结果不需要进入后端镜像上下文。
+web/node_modules
+web/dist
+
+# 其他常见本地产物。
+.idea
+.vscode
+*.log

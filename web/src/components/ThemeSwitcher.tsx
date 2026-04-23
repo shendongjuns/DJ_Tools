@@ -7,6 +7,7 @@ export function ThemeSwitcher() {
 
   return (
     <Select
+      className="theme-switcher"
       value={themeId}
       style={{ width: 140 }}
       onChange={setThemeId}
@@ -17,4 +18,3 @@ export function ThemeSwitcher() {
     />
   );
 }
-

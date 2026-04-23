@@ -39,7 +39,9 @@ public class UserService {
         UserAccount userAccount = userAccountMapper.findById(currentUser.getId());
         userAccount.setNickname(request.nickname());
         userAccount.setLoginAccount(request.loginAccount());
-        userAccount.setThemeId(request.themeId());
+        if (request.themeId() != null && !request.themeId().isBlank()) {
+            userAccount.setThemeId(request.themeId());
+        }
         userAccountMapper.updateProfile(userAccount);
         refreshTokenMapper.revokeByUserId(currentUser.getId());
         return toProfile(userAccountMapper.findById(currentUser.getId()));
@@ -68,4 +70,3 @@ public class UserService {
         );
     }
 }
-

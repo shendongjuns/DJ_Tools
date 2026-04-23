@@ -50,7 +50,7 @@ export function GlobalSearch() {
         <Space direction="vertical" style={{ width: '100%' }} size={16}>
           <Radio.Group value={scope} onChange={(event) => setScope(event.target.value)}>
             <Radio.Button value="all">全部</Radio.Button>
-            <Radio.Button value="todo">TODO</Radio.Button>
+            <Radio.Button value="todo">待办</Radio.Button>
             <Radio.Button value="note">笔记</Radio.Button>
           </Radio.Group>
           <Input.Search
@@ -82,7 +82,9 @@ export function GlobalSearch() {
                   <Typography.Paragraph style={{ marginBottom: 0 }} ellipsis={{ rows: 2 }}>
                     {item.snippet || '暂无摘要'}
                   </Typography.Paragraph>
-                  <Typography.Text type="secondary">{item.scope.toUpperCase()}</Typography.Text>
+                  <Typography.Text type="secondary">
+                    {item.scope === 'todo' ? '待办' : item.scope === 'note' ? '笔记' : '全部'}
+                  </Typography.Text>
                 </button>
               ))}
             </div>

@@ -13,7 +13,8 @@ import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.Statistics;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.transport.DockerHttpClient;
+import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
@@ -176,11 +177,7 @@ public class DashboardService {
                 osBean.getCommittedVirtualMemorySize(),
                 new AppMetricsResponse.MemoryMetric(heap.getUsed(), heap.getCommitted(), heap.getMax()),
                 new AppMetricsResponse.MemoryMetric(nonHeap.getUsed(), nonHeap.getCommitted(), nonHeap.getMax()),
-                gcMetrics,
-                false,
-                false,
-                "V1 暂未对应用进程磁盘 IO 做强依赖采集，当前环境默认降级显示",
-                "V1 暂未对应用进程网络 IO 做强依赖采集，当前环境默认降级显示"
+                gcMetrics
         );
     }
 
@@ -196,7 +193,7 @@ public class DashboardService {
         DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
                 .withDockerHost(dockerProperties.getHost())
                 .build();
-        ApacheDockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
+        DockerHttpClient httpClient = new ZerodepDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
                 .build();

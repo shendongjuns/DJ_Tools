@@ -25,4 +25,3 @@ public class DjToolsApplication {
         SpringApplication.run(DjToolsApplication.class, args);
     }
 }
-

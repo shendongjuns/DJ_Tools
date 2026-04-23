@@ -8,6 +8,8 @@ public interface UserAccountMapper {
 
     UserAccount findById(@Param("id") Long id);
 
+    Long findFirstUserId();
+
     UserAccount findByLoginAccount(@Param("loginAccount") String loginAccount);
 
     long countAll();

@@ -49,10 +49,14 @@ CREATE TABLE IF NOT EXISTS todo_item (
     remind_at TIMESTAMPTZ,
     status VARCHAR(32) NOT NULL,
     completed_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE todo_item
+    ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 
 COMMENT ON TABLE todo_item IS '待办事项表，保存 TODO 任务主体数据。';
 COMMENT ON COLUMN todo_item.id IS '待办主键 ID。';
@@ -61,8 +65,9 @@ COMMENT ON COLUMN todo_item.title IS '待办标题。';
 COMMENT ON COLUMN todo_item.description IS '待办详细描述。';
 COMMENT ON COLUMN todo_item.due_at IS '截止时间。';
 COMMENT ON COLUMN todo_item.remind_at IS '提醒触发时间。';
-COMMENT ON COLUMN todo_item.status IS '待办持久化状态，取值为 PENDING、IN_PROGRESS、COMPLETED。';
+COMMENT ON COLUMN todo_item.status IS '待办持久化状态，取值为 PENDING、IN_PROGRESS、COMPLETED、CANCELLED、UNFINISHED。';
 COMMENT ON COLUMN todo_item.completed_at IS '完成时间，未完成时为空。';
+COMMENT ON COLUMN todo_item.cancelled_at IS '取消时间，未取消时为空。';
 COMMENT ON COLUMN todo_item.deleted IS '是否逻辑删除。';
 COMMENT ON COLUMN todo_item.created_at IS '待办创建时间。';
 COMMENT ON COLUMN todo_item.updated_at IS '待办最后更新时间。';
@@ -209,3 +214,24 @@ CREATE INDEX IF NOT EXISTS idx_note_title_trgm ON note USING GIN (title gin_trgm
 CREATE INDEX IF NOT EXISTS idx_note_content_trgm ON note USING GIN (content gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_note_tag_name_trgm ON note_tag USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_note_folder_name_trgm ON note_folder USING GIN (name gin_trgm_ops);
+
+INSERT INTO user_account (
+    nickname,
+    login_account,
+    password_hash,
+    password_changed,
+    force_password_change,
+    theme_id
+)
+SELECT
+    'admin',
+    'admin',
+    '$2b$10$nHsoDdl.Bm1FyJe2NnC3G.8kmkbUToefSDzpE53r0Z7CoTbNrE.hq',
+    FALSE,
+    TRUE,
+    'cartoon'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM user_account
+    WHERE login_account = 'admin'
+);

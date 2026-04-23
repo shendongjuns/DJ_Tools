@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { dashboardApi } from '../api/services';
 import type { AppMetrics, ContainerMetrics, DashboardOverview, HostMetrics } from '../types';
 import { formatBytes, formatDateTime, formatDuration } from '../utils/format';
+import { getTodoStatusColor, getTodoStatusLabel } from '../utils/todo';
 
 export function DashboardPage() {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
@@ -11,26 +12,59 @@ export function DashboardPage() {
   const [appMetrics, setAppMetrics] = useState<AppMetrics | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const [overviewData, hostData, containerData, appData] = await Promise.all([
-        dashboardApi.overview(),
+    let cancelled = false;
+
+    async function loadOverview() {
+      try {
+        const overviewData = await dashboardApi.overview();
+        if (!cancelled) {
+          setOverview(overviewData);
+        }
+      } catch {
+        // 首页摘要首次加载失败时保持默认空态，避免把监控轮询也一并中断。
+      }
+    }
+
+    async function refreshMetrics() {
+      const [hostResult, containerResult, appResult] = await Promise.allSettled([
         dashboardApi.hostMetrics(),
         dashboardApi.containerMetrics(),
         dashboardApi.appMetrics(),
       ]);
-      setOverview(overviewData);
-      setHostMetrics(hostData);
-      setContainerMetrics(containerData);
-      setAppMetrics(appData);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (hostResult.status === 'fulfilled') {
+        setHostMetrics(hostResult.value);
+      }
+      if (containerResult.status === 'fulfilled') {
+        setContainerMetrics(containerResult.value);
+      }
+      if (appResult.status === 'fulfilled') {
+        setAppMetrics(appResult.value);
+      }
     }
-    void load();
+
+    void loadOverview();
+    void refreshMetrics();
+
+    const timer = window.setInterval(() => {
+      void refreshMetrics();
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, []);
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={8}>
-          <Card className="feature-card"><Statistic title="未完成 TODO" value={overview?.todoUnfinishedCount ?? 0} /></Card>
+          <Card className="feature-card"><Statistic title="未完成待办" value={overview?.todoUnfinishedCount ?? 0} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
           <Card className="feature-card"><Statistic title="笔记总数" value={overview?.noteCount ?? 0} /></Card>
@@ -42,7 +76,7 @@ export function DashboardPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={12}>
-          <Card className="feature-card" title="最新 TODO">
+          <Card className="feature-card" title="最新待办">
             <List
               dataSource={overview?.latestTodos ?? []}
               locale={{ emptyText: '暂无待办任务' }}
@@ -52,7 +86,7 @@ export function DashboardPage() {
                     title={
                       <Space>
                         <span>{item.title}</span>
-                        <Tag color={item.status === 'COMPLETED' ? 'green' : item.overdue ? 'red' : 'blue'}>{item.status}</Tag>
+                        <Tag color={getTodoStatusColor(item.status)}>{getTodoStatusLabel(item.status)}</Tag>
                       </Space>
                     }
                     description={`截止时间：${formatDateTime(item.dueAt)}`}
@@ -87,7 +121,7 @@ export function DashboardPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={8}>
-          <Card className="feature-card" title="宿主机监控">
+          <Card className="feature-card" title="宿主机监控（每秒刷新）">
             <Typography.Paragraph>CPU 使用率：{hostMetrics?.cpuUsage ?? 0}%</Typography.Paragraph>
             <Typography.Paragraph>
               内存：{formatBytes((hostMetrics?.totalMemory ?? 0) - (hostMetrics?.availableMemory ?? 0))} / {formatBytes(hostMetrics?.totalMemory)}
@@ -106,7 +140,7 @@ export function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} xl={8}>
-          <Card className="feature-card" title="Docker 容器监控">
+          <Card className="feature-card" title="Docker 容器监控（每秒刷新）">
             {!containerMetrics?.available ? (
               <Typography.Text type="secondary">{containerMetrics?.message || '暂无容器数据'}</Typography.Text>
             ) : (
@@ -126,7 +160,7 @@ export function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} xl={8}>
-          <Card className="feature-card" title="应用监控">
+          <Card className="feature-card" title="应用监控（每秒刷新）">
             <Typography.Paragraph>PID：{appMetrics?.pid ?? '-'}</Typography.Paragraph>
             <Typography.Paragraph>运行时长：{appMetrics ? formatDuration(Math.floor(appMetrics.uptimeMillis / 1000)) : '-'}</Typography.Paragraph>
             <Typography.Paragraph>进程 CPU：{appMetrics?.processCpuLoad ?? 0}%</Typography.Paragraph>
@@ -134,12 +168,9 @@ export function DashboardPage() {
             <Typography.Paragraph>
               堆内存：{formatBytes(appMetrics?.heapMemory.used)} / {formatBytes(appMetrics?.heapMemory.max)}
             </Typography.Paragraph>
-            <Typography.Paragraph>应用磁盘 IO：{appMetrics?.diskIoMessage ?? '-'}</Typography.Paragraph>
-            <Typography.Paragraph>应用网络 IO：{appMetrics?.networkIoMessage ?? '-'}</Typography.Paragraph>
           </Card>
         </Col>
       </Row>
     </Space>
   );
 }
-

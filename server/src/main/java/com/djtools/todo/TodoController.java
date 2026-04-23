@@ -26,8 +26,11 @@ public class TodoController {
     }
 
     @GetMapping
-    public ApiResponse<List<TodoResponse>> list(@RequestParam(required = false) String keyword) {
-        return ApiResponse.success(todoService.list(SecurityUtils.currentUser(), keyword));
+    public ApiResponse<List<TodoResponse>> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String statuses
+    ) {
+        return ApiResponse.success(todoService.list(SecurityUtils.currentUser(), keyword, statuses));
     }
 
     @PostMapping
@@ -51,4 +54,3 @@ public class TodoController {
         return ApiResponse.success(null, "任务已删除");
     }
 }
-

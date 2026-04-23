@@ -10,3 +10,5 @@ target/
 *.log
 coverage/
 ops/logs/
+ops/data/
+server/logs

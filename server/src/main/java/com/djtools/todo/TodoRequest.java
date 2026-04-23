@@ -12,7 +12,8 @@ public record TodoRequest(
         String description,
         OffsetDateTime dueAt,
         OffsetDateTime remindAt,
+        OffsetDateTime completedAt,
+        OffsetDateTime cancelledAt,
         TodoStatus status
 ) {
 }
-

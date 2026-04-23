@@ -10,8 +10,6 @@ public record UpdateProfileRequest(
         @NotBlank(message = "登录账号不能为空")
         @Size(max = 64, message = "登录账号长度不能超过 64")
         String loginAccount,
-        @NotBlank(message = "主题不能为空")
         String themeId
 ) {
 }
-

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/services';
 import { useAuth } from '../store/AuthContext';
 import { useThemeContext } from '../store/ThemeContext';
+import { storage } from '../utils/storage';
 
 export function InitialPasswordPage() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export function InitialPasswordPage() {
           onFinish={async (values) => {
             const response = await authApi.initialPassword(values);
             setSession(response);
-            setThemeId(response.profile.themeId || 'cartoon');
+            setThemeId(storage.getTheme() || response.profile.themeId || 'cartoon');
             message.success('初始密码已修改');
             navigate('/');
           }}
@@ -41,4 +42,3 @@ export function InitialPasswordPage() {
     </div>
   );
 }
-

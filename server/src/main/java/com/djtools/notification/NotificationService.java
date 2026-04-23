@@ -3,6 +3,7 @@ package com.djtools.notification;
 import com.djtools.security.CurrentUser;
 import com.djtools.todo.TodoItem;
 import com.djtools.todo.TodoMapper;
+import com.djtools.user.UserAccountMapper;
 import java.util.List;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -13,10 +14,16 @@ public class NotificationService {
 
     private final NotificationMapper notificationMapper;
     private final TodoMapper todoMapper;
+    private final UserAccountMapper userAccountMapper;
 
-    public NotificationService(NotificationMapper notificationMapper, TodoMapper todoMapper) {
+    public NotificationService(
+            NotificationMapper notificationMapper,
+            TodoMapper todoMapper,
+            UserAccountMapper userAccountMapper
+    ) {
         this.notificationMapper = notificationMapper;
         this.todoMapper = todoMapper;
+        this.userAccountMapper = userAccountMapper;
     }
 
     public NotificationListResponse list(CurrentUser currentUser) {
@@ -35,7 +42,10 @@ public class NotificationService {
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void generateTodoReminders() {
-        Long adminUserId = 1L;
+        Long adminUserId = userAccountMapper.findFirstUserId();
+        if (adminUserId == null) {
+            return;
+        }
         for (TodoItem todoItem : todoMapper.findNeedReminder(adminUserId)) {
             long exists = notificationMapper.countExists(adminUserId, "TODO_REMINDER", "TODO", todoItem.getId());
             if (exists > 0) {
@@ -68,4 +78,3 @@ public class NotificationService {
         );
     }
 }
-

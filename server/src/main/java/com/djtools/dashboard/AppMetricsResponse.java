@@ -9,11 +9,7 @@ public record AppMetricsResponse(
         long processMemoryBytes,
         MemoryMetric heapMemory,
         MemoryMetric nonHeapMemory,
-        List<GcMetric> gcMetrics,
-        boolean diskIoSupported,
-        boolean networkIoSupported,
-        String diskIoMessage,
-        String networkIoMessage
+        List<GcMetric> gcMetrics
 ) {
     public record MemoryMetric(long used, long committed, long max) {
     }
@@ -21,4 +17,3 @@ public record AppMetricsResponse(
     public record GcMetric(String name, long collectionCount, long collectionTime) {
     }
 }
-

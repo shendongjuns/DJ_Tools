@@ -12,6 +12,7 @@ public class TodoItem {
     private OffsetDateTime remindAt;
     private TodoStatus status;
     private OffsetDateTime completedAt;
+    private OffsetDateTime cancelledAt;
     private boolean deleted;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -80,6 +81,14 @@ public class TodoItem {
         this.completedAt = completedAt;
     }
 
+    public OffsetDateTime getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(OffsetDateTime cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
     public boolean isDeleted() {
         return deleted;
     }
@@ -104,4 +113,3 @@ public class TodoItem {
         this.updatedAt = updatedAt;
     }
 }
-

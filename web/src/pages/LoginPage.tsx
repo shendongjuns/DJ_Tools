@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/services';
 import { useAuth } from '../store/AuthContext';
 import { useThemeContext } from '../store/ThemeContext';
+import { storage } from '../utils/storage';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export function LoginPage() {
           onFinish={async (values) => {
             const data = await authApi.login(values);
             setSession(data);
-            setThemeId(data.profile.themeId || 'cartoon');
+            setThemeId(storage.getTheme() || data.profile.themeId || 'cartoon');
             message.success('登录成功');
             navigate(data.profile.forcePasswordChange ? '/initial-password' : '/');
           }}
@@ -42,4 +43,3 @@ export function LoginPage() {
     </div>
   );
 }
-

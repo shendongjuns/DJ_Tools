@@ -2,6 +2,7 @@ package com.djtools.todo;
 
 import com.djtools.common.ApiException;
 import com.djtools.security.CurrentUser;
+import java.util.Arrays;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -17,8 +18,13 @@ public class TodoService {
         this.todoMapper = todoMapper;
     }
 
-    public List<TodoResponse> list(CurrentUser currentUser, String keyword) {
-        return todoMapper.findAllByUser(currentUser.getId(), keyword).stream().map(this::toResponse).toList();
+    @Transactional
+    public List<TodoResponse> list(CurrentUser currentUser, String keyword, String statuses) {
+        normalizeExpiredTodos(currentUser.getId());
+        return todoMapper.findAllByUser(currentUser.getId(), keyword, parseStatuses(statuses))
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional
@@ -35,8 +41,12 @@ public class TodoService {
         todoItem.setDescription(request.description());
         todoItem.setDueAt(request.dueAt());
         todoItem.setRemindAt(request.remindAt());
-        todoItem.setStatus(request.status() == null ? TodoStatus.PENDING : request.status());
-        todoItem.setCompletedAt(todoItem.getStatus() == TodoStatus.COMPLETED ? OffsetDateTime.now() : null);
+        applyStatusTimes(
+                todoItem,
+                request.status() == null ? TodoStatus.PENDING : request.status(),
+                request.completedAt(),
+                request.cancelledAt()
+        );
         todoMapper.update(todoItem);
         return toResponse(requireTodo(currentUser.getId(), id));
     }
@@ -44,8 +54,7 @@ public class TodoService {
     @Transactional
     public TodoResponse updateStatus(CurrentUser currentUser, Long id, TodoStatusUpdateRequest request) {
         TodoItem todoItem = requireTodo(currentUser.getId(), id);
-        todoItem.setStatus(request.status());
-        todoItem.setCompletedAt(request.status() == TodoStatus.COMPLETED ? OffsetDateTime.now() : null);
+        applyStatusTimes(todoItem, request.status(), request.completedAt(), request.cancelledAt());
         todoMapper.updateStatus(todoItem);
         return toResponse(requireTodo(currentUser.getId(), id));
     }
@@ -57,6 +66,7 @@ public class TodoService {
     }
 
     public List<TodoResponse> latest(CurrentUser currentUser, int limit) {
+        normalizeExpiredTodos(currentUser.getId());
         return todoMapper.findLatest(currentUser.getId(), limit).stream().map(this::toResponse).toList();
     }
 
@@ -75,16 +85,18 @@ public class TodoService {
         todoItem.setDescription(request.description());
         todoItem.setDueAt(request.dueAt());
         todoItem.setRemindAt(request.remindAt());
-        todoItem.setStatus(request.status() == null ? TodoStatus.PENDING : request.status());
-        todoItem.setCompletedAt(todoItem.getStatus() == TodoStatus.COMPLETED ? OffsetDateTime.now() : null);
+        applyStatusTimes(
+                todoItem,
+                request.status() == null ? TodoStatus.PENDING : request.status(),
+                request.completedAt(),
+                request.cancelledAt()
+        );
         return todoItem;
     }
 
     private TodoResponse toResponse(TodoItem todoItem) {
-        boolean overdue = todoItem.getStatus() != TodoStatus.COMPLETED
-                && todoItem.getDueAt() != null
-                && todoItem.getDueAt().isBefore(OffsetDateTime.now());
-        boolean unfinished = todoItem.getStatus() != TodoStatus.COMPLETED;
+        boolean overdue = todoItem.getStatus() == TodoStatus.UNFINISHED;
+        boolean unfinished = todoItem.getStatus() != TodoStatus.COMPLETED && todoItem.getStatus() != TodoStatus.CANCELLED;
         return new TodoResponse(
                 todoItem.getId(),
                 todoItem.getTitle(),
@@ -95,9 +107,57 @@ public class TodoService {
                 overdue,
                 unfinished,
                 todoItem.getCompletedAt(),
+                todoItem.getCancelledAt(),
                 todoItem.getCreatedAt(),
                 todoItem.getUpdatedAt()
         );
     }
-}
 
+    private void applyStatusTimes(
+            TodoItem todoItem,
+            TodoStatus status,
+            OffsetDateTime completedAt,
+            OffsetDateTime cancelledAt
+    ) {
+        todoItem.setStatus(status);
+        switch (status) {
+            case COMPLETED -> {
+                todoItem.setCompletedAt(completedAt != null ? completedAt : OffsetDateTime.now());
+                todoItem.setCancelledAt(null);
+            }
+            case CANCELLED -> {
+                todoItem.setCompletedAt(null);
+                todoItem.setCancelledAt(cancelledAt != null ? cancelledAt : OffsetDateTime.now());
+            }
+            default -> {
+                todoItem.setCompletedAt(null);
+                todoItem.setCancelledAt(null);
+            }
+        }
+    }
+
+    private void normalizeExpiredTodos(Long userId) {
+        todoMapper.updateExpiredStatuses(userId);
+    }
+
+    private List<TodoStatus> parseStatuses(String statuses) {
+        if (statuses == null || statuses.isBlank()) {
+            return List.of();
+        }
+        List<TodoStatus> parsedStatuses = Arrays.stream(statuses.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .map(this::parseStatus)
+                .distinct()
+                .toList();
+        return parsedStatuses;
+    }
+
+    private TodoStatus parseStatus(String value) {
+        try {
+            return TodoStatus.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "存在不支持的任务状态: " + value);
+        }
+    }
+}

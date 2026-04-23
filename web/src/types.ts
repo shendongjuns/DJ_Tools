@@ -19,16 +19,19 @@ export interface AuthResponse {
   profile: UserProfile;
 }
 
+export type TodoStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'UNFINISHED';
+
 export interface TodoItem {
   id: number;
   title: string;
   description?: string;
   dueAt?: string;
   remindAt?: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  status: TodoStatus;
   overdue: boolean;
   unfinished: boolean;
   completedAt?: string;
+  cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -167,9 +170,4 @@ export interface AppMetrics {
   heapMemory: { used: number; committed: number; max: number };
   nonHeapMemory: { used: number; committed: number; max: number };
   gcMetrics: Array<{ name: string; collectionCount: number; collectionTime: number }>;
-  diskIoSupported: boolean;
-  networkIoSupported: boolean;
-  diskIoMessage: string;
-  networkIoMessage: string;
 }
-
