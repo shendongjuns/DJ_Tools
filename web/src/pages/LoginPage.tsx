@@ -16,9 +16,6 @@ export function LoginPage() {
     <div className="auth-page">
       <Card className="auth-card">
         <Typography.Title level={2}>登录个人工作台</Typography.Title>
-        <Typography.Paragraph type="secondary">
-          默认账号为 admin，初始密码为 123456，首次登录后必须修改密码。
-        </Typography.Paragraph>
         <Form
           layout="vertical"
           onFinish={async (values) => {

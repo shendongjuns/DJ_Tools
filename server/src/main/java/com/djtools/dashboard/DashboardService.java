@@ -1,22 +1,10 @@
 package com.djtools.dashboard;
 
-import com.djtools.config.AppDockerProperties;
 import com.djtools.note.NoteService;
 import com.djtools.notification.NotificationMapper;
 import com.djtools.security.CurrentUser;
 import com.djtools.todo.TodoMapper;
 import com.djtools.todo.TodoService;
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.async.ResultCallback;
-import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.github.dockerjava.api.model.Container;
-import com.github.dockerjava.api.model.Statistics;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.transport.DockerHttpClient;
-import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
-import java.io.Closeable;
-import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -25,8 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
@@ -45,7 +31,7 @@ public class DashboardService {
     private final TodoService todoService;
     private final NoteService noteService;
     private final NotificationMapper notificationMapper;
-    private final AppDockerProperties dockerProperties;
+    private final ContainerMetricsSnapshotService containerMetricsSnapshotService;
     private final SystemInfo systemInfo = new SystemInfo();
     private long[] previousCpuTicks;
 
@@ -54,13 +40,13 @@ public class DashboardService {
             TodoService todoService,
             NoteService noteService,
             NotificationMapper notificationMapper,
-            AppDockerProperties dockerProperties
+            ContainerMetricsSnapshotService containerMetricsSnapshotService
     ) {
         this.todoMapper = todoMapper;
         this.todoService = todoService;
         this.noteService = noteService;
         this.notificationMapper = notificationMapper;
-        this.dockerProperties = dockerProperties;
+        this.containerMetricsSnapshotService = containerMetricsSnapshotService;
         this.previousCpuTicks = systemInfo.getHardware().getProcessor().getSystemCpuLoadTicks();
     }
 
@@ -117,47 +103,7 @@ public class DashboardService {
     }
 
     public ContainerMetricsResponse containerMetrics() {
-        if (!isDockerMetricsAvailable()) {
-            return new ContainerMetricsResponse(false, "当前环境不是带 Docker Socket 的容器部署，已自动跳过容器监控", List.of());
-        }
-        try (DockerClient dockerClient = createDockerClient()) {
-            List<ContainerMetricsResponse.ContainerMetric> items = new ArrayList<>();
-            for (Container container : dockerClient.listContainersCmd().withShowAll(true).exec()) {
-                Statistics statistics = fetchStats(dockerClient, container.getId());
-                InspectContainerResponse inspect = dockerClient.inspectContainerCmd(container.getId()).exec();
-                double cpuUsage = 0;
-                long memoryUsage = 0;
-                if (statistics != null && statistics.getCpuStats() != null && statistics.getMemoryStats() != null) {
-                    memoryUsage = statistics.getMemoryStats().getUsage() == null ? 0 : statistics.getMemoryStats().getUsage();
-                    if (statistics.getCpuStats().getCpuUsage() != null && statistics.getPreCpuStats().getCpuUsage() != null) {
-                        long cpuDelta = statistics.getCpuStats().getCpuUsage().getTotalUsage()
-                                - statistics.getPreCpuStats().getCpuUsage().getTotalUsage();
-                        long systemDelta = statistics.getCpuStats().getSystemCpuUsage()
-                                - statistics.getPreCpuStats().getSystemCpuUsage();
-                        if (cpuDelta > 0 && systemDelta > 0) {
-                            long cpuCores = statistics.getCpuStats().getOnlineCpus() == null
-                                    ? 1
-                                    : statistics.getCpuStats().getOnlineCpus();
-                            cpuUsage = (double) cpuDelta / systemDelta * cpuCores * 100;
-                        }
-                    }
-                }
-                String containerName = container.getNames() != null && container.getNames().length > 0
-                        ? container.getNames()[0].replaceFirst("^/", "")
-                        : container.getId();
-                items.add(new ContainerMetricsResponse.ContainerMetric(
-                        container.getId(),
-                        containerName,
-                        container.getImage(),
-                        inspect.getState() == null ? "unknown" : inspect.getState().getStatus(),
-                        round(cpuUsage),
-                        memoryUsage
-                ));
-            }
-            return new ContainerMetricsResponse(true, "ok", items);
-        } catch (Exception exception) {
-            return new ContainerMetricsResponse(false, "Docker 容器监控不可用: " + exception.getMessage(), List.of());
-        }
+        return containerMetricsSnapshotService.currentMetrics();
     }
 
     public AppMetricsResponse appMetrics() {
@@ -177,7 +123,8 @@ public class DashboardService {
                 osBean.getCommittedVirtualMemorySize(),
                 new AppMetricsResponse.MemoryMetric(heap.getUsed(), heap.getCommitted(), heap.getMax()),
                 new AppMetricsResponse.MemoryMetric(nonHeap.getUsed(), nonHeap.getCommitted(), nonHeap.getMax()),
-                gcMetrics
+                gcMetrics,
+                isContainerDeployment()
         );
     }
 
@@ -189,55 +136,30 @@ public class DashboardService {
         );
     }
 
-    private DockerClient createDockerClient() {
-        DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                .withDockerHost(dockerProperties.getHost())
-                .build();
-        DockerHttpClient httpClient = new ZerodepDockerHttpClient.Builder()
-                .dockerHost(config.getDockerHost())
-                .sslConfig(config.getSSLConfig())
-                .build();
-        return DockerClientImpl.getInstance(config, httpClient);
+    private boolean isContainerDeployment() {
+        return Files.exists(DOCKER_ENV_FILE);
     }
 
-    private boolean isDockerMetricsAvailable() {
-        return Files.exists(DOCKER_ENV_FILE) && Files.exists(DOCKER_SOCKET_FILE);
-    }
-
-    private Statistics fetchStats(DockerClient dockerClient, String containerId) throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        StatsCallback callback = new StatsCallback(latch);
-        dockerClient.statsCmd(containerId).exec(callback);
-        latch.await(3, TimeUnit.SECONDS);
-        try {
-            callback.close();
-        } catch (IOException ignored) {
-            // 统计回调关闭失败不影响主流程，直接返回已采集到的数据即可。
+    static double calculateContainerCpuUsage(
+            Long totalUsage,
+            Long previousTotalUsage,
+            Long systemCpuUsage,
+            Long previousSystemCpuUsage,
+            Long onlineCpus
+    ) {
+        if (totalUsage == null || previousTotalUsage == null || systemCpuUsage == null || previousSystemCpuUsage == null) {
+            return 0;
         }
-        return callback.getStatistics();
+        long cpuDelta = totalUsage - previousTotalUsage;
+        long systemDelta = systemCpuUsage - previousSystemCpuUsage;
+        if (cpuDelta <= 0 || systemDelta <= 0) {
+            return 0;
+        }
+        long cpuCores = onlineCpus == null || onlineCpus <= 0 ? 1 : onlineCpus;
+        return round((double) cpuDelta / systemDelta * cpuCores * 100);
     }
 
-    private double round(double value) {
+    private static double round(double value) {
         return Math.round(value * 100.0) / 100.0;
-    }
-
-    private static class StatsCallback extends ResultCallback.Adapter<Statistics> {
-
-        private final CountDownLatch latch;
-        private Statistics statistics;
-
-        private StatsCallback(CountDownLatch latch) {
-            this.latch = latch;
-        }
-
-        @Override
-        public void onNext(Statistics object) {
-            this.statistics = object;
-            latch.countDown();
-        }
-
-        public Statistics getStatistics() {
-            return statistics;
-        }
     }
 }

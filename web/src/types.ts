@@ -170,4 +170,5 @@ export interface AppMetrics {
   heapMemory: { used: number; committed: number; max: number };
   nonHeapMemory: { used: number; committed: number; max: number };
   gcMetrics: Array<{ name: string; collectionCount: number; collectionTime: number }>;
+  containerDeployment: boolean;
 }

@@ -52,6 +52,8 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       SERVER_PORT: 8080
       POSTGRES_HOST: postgres

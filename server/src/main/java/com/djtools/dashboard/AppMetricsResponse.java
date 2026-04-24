@@ -9,7 +9,8 @@ public record AppMetricsResponse(
         long processMemoryBytes,
         MemoryMetric heapMemory,
         MemoryMetric nonHeapMemory,
-        List<GcMetric> gcMetrics
+        List<GcMetric> gcMetrics,
+        boolean containerDeployment
 ) {
     public record MemoryMetric(long used, long committed, long max) {
     }

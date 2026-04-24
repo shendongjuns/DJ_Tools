@@ -1,19 +1,23 @@
+# syntax=docker/dockerfile:1.7
+
 FROM maven:3.9.14-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app/server
-
-# 仅 Docker 构建阶段使用阿里 Maven 镜像，加速 dependency:go-offline 和 package。
-COPY ops/maven/settings.xml /root/.m2/settings.xml
 
 # 先复制 Maven 配置文件，以尽量命中依赖缓存。
 COPY server/pom.xml pom.xml
 
 COPY server/src src
 
-# 直接执行一次 package，同时完成依赖解析与打包，避免 go-offline 长时间静默等待。
-RUN mvn -B -ntp -s /root/.m2/settings.xml -DskipTests package
+# 使用 BuildKit 缓存 Maven 本地仓库，避免重复构建时反复下载依赖。
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn  \
+        -Dmaven.wagon.http.retryHandler.count=3 \
+        -Dmaven.wagon.http.retryHandler.requestSentEnabled=true \
+        -DskipTests \
+        package
 
-FROM maven:3.9.14-eclipse-temurin-21-alpine
+FROM eclipse-temurin:21-jre-alpine-3.22
 
 WORKDIR /app
 
