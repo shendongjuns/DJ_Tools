@@ -69,5 +69,6 @@
           AND type = #{type}
           AND related_type = #{relatedType}
           AND related_id = #{relatedId}
+          AND remind_at = #{remindAt}
     </select>
 </mapper>

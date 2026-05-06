@@ -47,7 +47,13 @@ public class NotificationService {
             return;
         }
         for (TodoItem todoItem : todoMapper.findNeedReminder(adminUserId)) {
-            long exists = notificationMapper.countExists(adminUserId, "TODO_REMINDER", "TODO", todoItem.getId());
+            long exists = notificationMapper.countExists(
+                    adminUserId,
+                    "TODO_REMINDER",
+                    "TODO",
+                    todoItem.getId(),
+                    todoItem.getRemindAt()
+            );
             if (exists > 0) {
                 continue;
             }

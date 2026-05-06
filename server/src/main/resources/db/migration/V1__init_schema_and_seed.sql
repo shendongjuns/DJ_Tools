@@ -235,3 +235,14 @@ WHERE NOT EXISTS (
     FROM user_account
     WHERE login_account = 'admin'
 );
+
+UPDATE todo_item
+SET remind_at = CASE
+    WHEN due_at IS NULL THEN NULL
+    WHEN status IN ('COMPLETED', 'CANCELLED') THEN NULL
+    WHEN due_at <= CURRENT_TIMESTAMP THEN NULL
+    WHEN due_at <= CURRENT_TIMESTAMP + INTERVAL '1 minute' THEN CURRENT_TIMESTAMP
+    WHEN due_at < CURRENT_TIMESTAMP + INTERVAL '10 minutes' THEN due_at - INTERVAL '1 minute'
+    ELSE due_at - INTERVAL '10 minutes'
+END
+WHERE deleted = FALSE;

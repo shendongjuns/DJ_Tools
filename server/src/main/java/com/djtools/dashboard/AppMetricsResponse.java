@@ -10,7 +10,8 @@ public record AppMetricsResponse(
         MemoryMetric heapMemory,
         MemoryMetric nonHeapMemory,
         List<GcMetric> gcMetrics,
-        boolean containerDeployment
+        boolean containerDeployment,
+        boolean dockerMonitoringAvailable
 ) {
     public record MemoryMetric(long used, long committed, long max) {
     }

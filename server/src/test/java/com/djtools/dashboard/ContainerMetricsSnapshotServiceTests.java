@@ -10,6 +10,15 @@ import org.junit.jupiter.api.Test;
 class ContainerMetricsSnapshotServiceTests {
 
     @Test
+    void doesNotCollectUntilExplicitlyRequested() {
+        FakeContainerMetricsCollector collector = new FakeContainerMetricsCollector(true);
+        ContainerMetricsSnapshotService snapshotService = ContainerMetricsSnapshotService.forTesting(collector);
+
+        assertTrue(snapshotService.isAvailable());
+        assertEquals(0, collector.collectCalls);
+    }
+
+    @Test
     void currentMetricsReturnsUnavailableWhenDockerMonitoringIsNotAvailable() {
         FakeContainerMetricsCollector collector = new FakeContainerMetricsCollector(false);
         ContainerMetricsSnapshotService snapshotService = ContainerMetricsSnapshotService.forTesting(collector);
@@ -22,7 +31,7 @@ class ContainerMetricsSnapshotServiceTests {
     }
 
     @Test
-    void refreshSnapshotCachesCollectedMetricsForSubsequentReads() {
+    void currentMetricsCollectsFreshSnapshotOnDemand() {
         FakeContainerMetricsCollector collector = new FakeContainerMetricsCollector(true);
         ContainerMetricsResponse collected = new ContainerMetricsResponse(
                 true,
@@ -39,7 +48,6 @@ class ContainerMetricsSnapshotServiceTests {
         collector.nextResponse = collected;
         ContainerMetricsSnapshotService snapshotService = ContainerMetricsSnapshotService.forTesting(collector);
 
-        snapshotService.refreshSnapshot();
         ContainerMetricsResponse response = snapshotService.currentMetrics();
 
         assertTrue(response.available());
@@ -65,11 +73,10 @@ class ContainerMetricsSnapshotServiceTests {
         collector.nextResponse = collected;
         ContainerMetricsSnapshotService snapshotService = ContainerMetricsSnapshotService.forTesting(collector);
 
-        snapshotService.refreshSnapshot();
+        snapshotService.currentMetrics();
         collector.throwOnCollect = true;
 
-        snapshotService.refreshSnapshot();
-        ContainerMetricsResponse response = snapshotService.currentMetrics();
+        ContainerMetricsResponse response = snapshotService.refreshSnapshot();
 
         assertTrue(response.available());
         assertEquals(collected.items(), response.items());

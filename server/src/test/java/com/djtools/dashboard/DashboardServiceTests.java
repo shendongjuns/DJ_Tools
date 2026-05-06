@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.djtools.note.NoteService;
 import com.djtools.notification.NotificationMapper;
@@ -17,19 +18,23 @@ class DashboardServiceTests {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void appMetricsResponseExposesContainerDeploymentFlagAndDoesNotExposeDeprecatedIoFields() throws Exception {
+    void appMetricsResponseExposesDeploymentAndDockerAvailabilityFlags() throws Exception {
+        ContainerMetricsSnapshotService snapshotService = mock(ContainerMetricsSnapshotService.class);
+        when(snapshotService.isAvailable()).thenReturn(true);
+
         DashboardService dashboardService = new DashboardService(
                 mock(TodoMapper.class),
                 mock(TodoService.class),
                 mock(NoteService.class),
                 mock(NotificationMapper.class),
-                mock(ContainerMetricsSnapshotService.class)
+                snapshotService
         );
 
         String json = objectMapper.writeValueAsString(dashboardService.appMetrics());
 
         assertTrue(json.contains("\"pid\""));
         assertTrue(json.contains("\"containerDeployment\""));
+        assertTrue(json.contains("\"dockerMonitoringAvailable\""));
         assertFalse(json.contains("diskIoSupported"));
         assertFalse(json.contains("networkIoSupported"));
         assertFalse(json.contains("diskIoMessage"));

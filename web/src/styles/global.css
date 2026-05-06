@@ -97,6 +97,7 @@ html[data-theme='glass'] body {
 
 .header-actions {
   align-items: center;
+  min-width: 0;
 }
 
 .user-menu-trigger {
@@ -580,6 +581,31 @@ html[data-theme='dark'] .monitoring-section {
   color: var(--monitor-muted-text);
 }
 
+.monitor-query-state {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.monitor-query-message {
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--monitor-block-bg) 88%, white);
+  border: 1px solid var(--monitor-block-border);
+  color: var(--monitor-muted-text);
+  font-size: 12px;
+}
+
+.monitor-query-message.is-warning {
+  color: #b45309;
+  background: rgba(253, 230, 138, 0.28);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.monitor-modal-body {
+  color: var(--monitor-strong-text);
+}
+
 html[data-theme='dark'] .monitor-gauge .ant-progress-text {
   text-shadow: none;
 }
@@ -597,26 +623,97 @@ html[data-theme='dark'] .monitor-gauge .ant-progress-text {
   }
 
   .header-actions {
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
     justify-content: flex-end;
+    gap: 8px;
   }
 }
 
 @media (max-width: 768px) {
+  .app-header {
+    align-items: stretch;
+    gap: 10px 12px;
+  }
+
   .app-content {
     padding: 16px;
   }
 
   .brand-block {
-    min-width: auto;
+    order: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .top-nav {
+    order: 3;
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .header-actions {
+    order: 2;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    gap: 6px;
+    margin-left: 0;
+    justify-content: flex-end;
+    flex: 0 0 100%;
+  }
+
+  .header-actions .ant-space-item {
+    min-width: 0;
+  }
+
+  .header-actions .ant-space-item:first-child .ant-btn {
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 0;
+  }
+
+  .header-actions .ant-space-item:first-child .ant-btn > span:not(.anticon) {
+    display: none;
+  }
+
+  .theme-switcher {
+    width: 88px !important;
+  }
+
+  .theme-switcher .ant-select-selector {
+    padding-inline: 8px !important;
   }
 
   .user-menu-trigger {
-    max-width: 152px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    padding-inline: 0 !important;
   }
 
-  .user-menu-name {
-    max-width: 64px;
+  .user-menu-name,
+  .user-menu-arrow {
+    display: none;
+  }
+
+  .user-menu-content {
+    gap: 0;
+  }
+
+  .top-nav .ant-menu-overflow {
+    justify-content: flex-start;
+  }
+
+  .top-nav .ant-menu-item {
+    padding-inline: 12px !important;
+    margin-inline: 0 !important;
+  }
+
+  .top-nav .ant-menu-title-content {
+    font-size: 13px;
   }
 
   .monitor-gauge-grid {

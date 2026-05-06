@@ -1,5 +1,5 @@
 import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
-import { Card, Col, Empty, List, Progress, Row, Space, Statistic, Tag, Typography } from 'antd';
+import { Button, Card, Col, Empty, List, Modal, Progress, Row, Space, Statistic, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { dashboardApi } from '../api/services';
 import type { AppMetrics, ContainerMetrics, DashboardOverview, HostMetrics } from '../types';
@@ -8,7 +8,6 @@ import { getTodoStatusColor, getTodoStatusLabel } from '../utils/todo';
 
 const APP_METRICS_REFRESH_INTERVAL_MS = 1000;
 const HOST_METRICS_REFRESH_INTERVAL_MS = 1000;
-const CONTAINER_METRICS_REFRESH_INTERVAL_MS = 5000;
 
 function clampPercent(value?: number | null) {
   if (!Number.isFinite(value)) {
@@ -54,6 +53,11 @@ export function DashboardPage() {
   const [hostMetrics, setHostMetrics] = useState<HostMetrics | null>(null);
   const [containerMetrics, setContainerMetrics] = useState<ContainerMetrics | null>(null);
   const [appMetrics, setAppMetrics] = useState<AppMetrics | null>(null);
+  const [containerQueryStarted, setContainerQueryStarted] = useState(false);
+  const [containerQuerying, setContainerQuerying] = useState(false);
+  const [containerQueryProgress, setContainerQueryProgress] = useState(0);
+  const [containerQueryMessage, setContainerQueryMessage] = useState<string | null>(null);
+  const [containerModalOpen, setContainerModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,10 +98,12 @@ export function DashboardPage() {
         }
 
         setAppMetrics(appResult);
-
-        if (!appResult.containerDeployment) {
-          setHostMetrics(null);
+        if (!appResult.dockerMonitoringAvailable) {
           setContainerMetrics(null);
+          setContainerQueryStarted(false);
+          setContainerModalOpen(false);
+          setContainerQueryProgress(0);
+          setContainerQueryMessage(null);
         }
       } catch {
         // 保留最近一次成功数据，避免单次失败让其它监控卡片回退为空。
@@ -119,10 +125,6 @@ export function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!appMetrics?.containerDeployment) {
-      return;
-    }
-
     let cancelled = false;
     let inFlight = false;
 
@@ -155,46 +157,53 @@ export function DashboardPage() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [appMetrics?.containerDeployment]);
+  }, []);
 
   useEffect(() => {
-    if (!appMetrics?.containerDeployment) {
+    if (!containerQuerying) {
       return;
     }
 
-    let cancelled = false;
-    let inFlight = false;
-
-    async function refreshContainerMetrics() {
-      if (inFlight) {
-        return;
-      }
-
-      inFlight = true;
-
-      try {
-        const containerResult = await dashboardApi.containerMetrics();
-        if (!cancelled) {
-          setContainerMetrics(containerResult);
-        }
-      } catch {
-        // 保留最近一次成功数据，失败只影响当前卡片的本次更新。
-      } finally {
-        inFlight = false;
-      }
-    }
-
-    void refreshContainerMetrics();
-
     const timer = window.setInterval(() => {
-      void refreshContainerMetrics();
-    }, CONTAINER_METRICS_REFRESH_INTERVAL_MS);
-
+      setContainerQueryProgress((previous) => {
+        if (previous >= 90) {
+          return previous;
+        }
+        return Math.min(previous + 12, 90);
+      });
+    }, 200);
     return () => {
-      cancelled = true;
       window.clearInterval(timer);
     };
-  }, [appMetrics?.containerDeployment]);
+  }, [containerQuerying]);
+
+  async function handleContainerQuery() {
+    setContainerModalOpen(true);
+    setContainerQueryStarted(true);
+    setContainerQuerying(true);
+    setContainerQueryProgress(12);
+    setContainerQueryMessage(null);
+
+    try {
+      const result = await dashboardApi.containerMetrics();
+      setContainerMetrics((previous) => {
+        if (!result.available && previous?.available) {
+          return previous;
+        }
+        return result;
+      });
+      setContainerQueryMessage(result.message !== 'ok' ? result.message : null);
+      setContainerQueryProgress(100);
+    } catch {
+      setContainerQueryMessage('Docker 容器监控查询失败，请稍后重试');
+      setContainerQueryProgress(100);
+    } finally {
+      window.setTimeout(() => {
+        setContainerQuerying(false);
+        setContainerQueryProgress(0);
+      }, 180);
+    }
+  }
 
   const hostMemoryUsed = (hostMetrics?.totalMemory ?? 0) - (hostMetrics?.availableMemory ?? 0);
   const hostMemoryPercent = getUsagePercent(hostMemoryUsed, hostMetrics?.totalMemory);
@@ -202,7 +211,7 @@ export function DashboardPage() {
   const nonHeapLimit = resolveMemoryLimit(appMetrics?.nonHeapMemory.max, appMetrics?.nonHeapMemory.committed);
   const heapPercent = getUsagePercent(appMetrics?.heapMemory.used, heapLimit);
   const nonHeapPercent = getUsagePercent(appMetrics?.nonHeapMemory.used, nonHeapLimit);
-  const showMonitoringSection = Boolean(appMetrics?.containerDeployment);
+  const showDockerMonitoring = Boolean(appMetrics?.dockerMonitoringAvailable);
   const runningContainerCount = containerMetrics?.items.filter((item) => item.state === 'running').length ?? 0;
 
   return (
@@ -264,201 +273,234 @@ export function DashboardPage() {
         </Col>
       </Row>
 
-      {showMonitoringSection ? (
-        <section className="monitoring-section">
-          <div className="monitoring-section-header">
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              运行态观测台
-            </Typography.Title>
-            <Typography.Text type="secondary">
-              仪表化展示宿主机、容器与应用关键指标，静默轮询更新。
-            </Typography.Text>
-          </div>
+      <section className="monitoring-section">
+        <div className="monitoring-section-header">
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            运行态观测台
+          </Typography.Title>
+        </div>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24} xl={8}>
-              <Card className="feature-card monitor-card" title="宿主机监控">
-                <div className="monitor-card-body">
-                  <div className="monitor-gauge-grid">
-                    <div className="monitor-gauge">
-                      <span className="monitor-kicker">CPU 使用率</span>
-                      <Progress
-                        type="dashboard"
-                        percent={clampPercent(hostMetrics?.cpuUsage)}
-                        strokeColor={{ '0%': '#ff8b5b', '100%': '#ffbd73' }}
-                        trailColor="var(--monitor-progress-trail)"
-                      />
-                    </div>
-                    <div className="monitor-gauge">
-                      <span className="monitor-kicker">内存占用</span>
-                      <Progress
-                        type="dashboard"
-                        percent={hostMemoryPercent}
-                        strokeColor={{ '0%': '#3dbb8a', '100%': '#67d6a5' }}
-                        trailColor="var(--monitor-progress-trail)"
-                      />
-                      <div className="monitor-gauge-value">
-                        {formatBytes(hostMemoryUsed)} / {formatBytes(hostMetrics?.totalMemory)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="monitor-pill-row">
-                    <div className="monitor-pill">
-                      <span className="monitor-pill-label">开机时长</span>
-                      <strong>{hostMetrics ? formatDuration(hostMetrics.uptimeSeconds) : '-'}</strong>
-                    </div>
-                    <div className="monitor-pill">
-                      <span className="monitor-pill-label">Swap</span>
-                      <strong>{formatBytes(hostMetrics?.usedSwap)} / {formatBytes(hostMetrics?.totalSwap)}</strong>
-                    </div>
-                  </div>
-
-                  <div className="monitor-network-list">
-                    {(hostMetrics?.networks ?? []).slice(0, 3).map((item) => (
-                      <div className="monitor-network-item" key={item.name}>
-                        <div>
-                          <Typography.Text strong>{item.name}</Typography.Text>
-                        </div>
-                        <div className="monitor-network-flow">
-                          <span><ArrowDownOutlined /> {formatBytes(item.bytesRecv)}</span>
-                          <span><ArrowUpOutlined /> {formatBytes(item.bytesSent)}</span>
-                        </div>
-                      </div>
-                    ))}
-                    {hostMetrics && hostMetrics.networks.length === 0 ? (
-                      <div className="monitor-network-empty">暂无网络接口数据</div>
-                    ) : null}
-                  </div>
-                </div>
-              </Card>
-            </Col>
-
-            <Col xs={24} xl={8}>
-              <Card className="feature-card monitor-card" title="Docker 容器监控">
-                {!containerMetrics?.available ? (
-                  <div className="monitor-empty">
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description={containerMetrics?.message || '暂无容器数据'}
-                    />
-                  </div>
-                ) : (
-                  <div className="monitor-card-body">
-                    <div className="monitor-pill-row">
-                      <div className="monitor-pill">
-                        <span className="monitor-pill-label">容器总数</span>
-                        <strong>{containerMetrics.items.length}</strong>
-                      </div>
-                      <div className="monitor-pill">
-                        <span className="monitor-pill-label">运行中</span>
-                        <strong>{runningContainerCount}</strong>
-                      </div>
-                    </div>
-
-                    <div className="monitor-container-list">
-                      {containerMetrics.items.map((item) => (
-                        <div className="monitor-container-item" key={item.id}>
-                          <div className="monitor-container-top">
-                            <div className="monitor-container-meta">
-                              <Typography.Text strong>{item.name}</Typography.Text>
-                              <span className="monitor-container-image">{item.image}</span>
-                            </div>
-                            <Tag color={getContainerStateColor(item.state)}>{item.state}</Tag>
-                          </div>
-                          <div className="monitor-inline-stat">
-                            <span>CPU 负载</span>
-                            <strong>{clampPercent(item.cpuUsage)}%</strong>
-                          </div>
-                          <Progress
-                            percent={clampPercent(item.cpuUsage)}
-                            showInfo={false}
-                            strokeColor={{ '0%': '#f97316', '100%': '#fb7185' }}
-                            trailColor="var(--monitor-progress-trail)"
-                          />
-                          <div className="monitor-memory-note">内存占用 {formatBytes(item.memoryUsage)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            </Col>
-
-            <Col xs={24} xl={8}>
-              <Card className="feature-card monitor-card" title="应用监控">
-                <div className="monitor-card-body">
-                  <div className="monitor-gauge-grid">
-                    <div className="monitor-gauge">
-                      <span className="monitor-kicker">进程 CPU</span>
-                      <Progress
-                        type="dashboard"
-                        percent={clampPercent(appMetrics?.processCpuLoad)}
-                        strokeColor={{ '0%': '#5b8cff', '100%': '#89a8ff' }}
-                        trailColor="var(--monitor-progress-trail)"
-                      />
-                    </div>
-                    <div className="monitor-gauge">
-                      <span className="monitor-kicker">堆内存</span>
-                      <Progress
-                        type="dashboard"
-                        percent={heapPercent}
-                        strokeColor={{ '0%': '#14b8a6', '100%': '#2dd4bf' }}
-                        trailColor="var(--monitor-progress-trail)"
-                      />
-                      <div className="monitor-gauge-value">
-                        {formatBytes(appMetrics?.heapMemory.used)} / {formatBytes(heapLimit)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="monitor-pill-row">
-                    <div className="monitor-pill">
-                      <span className="monitor-pill-label">PID</span>
-                      <strong>{appMetrics?.pid ?? '-'}</strong>
-                    </div>
-                    <div className="monitor-pill">
-                      <span className="monitor-pill-label">运行时长</span>
-                      <strong>{appMetrics ? formatDuration(Math.floor(appMetrics.uptimeMillis / 1000)) : '-'}</strong>
-                    </div>
-                    <div className="monitor-pill">
-                      <span className="monitor-pill-label">虚拟内存</span>
-                      <strong>{formatBytes(appMetrics?.processMemoryBytes)}</strong>
-                    </div>
-                  </div>
-
-                  <div className="monitor-memory-band">
-                    <div className="monitor-inline-stat">
-                      <span>非堆内存</span>
-                      <strong>{formatBytes(appMetrics?.nonHeapMemory.used)} / {formatBytes(nonHeapLimit)}</strong>
-                    </div>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} xl={12}>
+            <Card
+              className="feature-card monitor-card"
+              title="宿主机监控"
+              extra={showDockerMonitoring ? (
+                <Button type="link" size="small" onClick={() => void handleContainerQuery()} loading={containerQuerying}>
+                  {containerQueryStarted ? '刷新容器监控' : '查询 Docker 容器监控'}
+                </Button>
+              ) : null}
+            >
+              <div className="monitor-card-body">
+                <div className="monitor-gauge-grid">
+                  <div className="monitor-gauge">
+                    <span className="monitor-kicker">CPU 使用率</span>
                     <Progress
-                      percent={nonHeapPercent}
-                      showInfo={false}
-                      strokeColor={{ '0%': '#6366f1', '100%': '#8b5cf6' }}
+                      type="dashboard"
+                      percent={clampPercent(hostMetrics?.cpuUsage)}
+                      strokeColor={{ '0%': '#ff8b5b', '100%': '#ffbd73' }}
                       trailColor="var(--monitor-progress-trail)"
                     />
                   </div>
+                  <div className="monitor-gauge">
+                    <span className="monitor-kicker">内存占用</span>
+                    <Progress
+                      type="dashboard"
+                      percent={hostMemoryPercent}
+                      strokeColor={{ '0%': '#3dbb8a', '100%': '#67d6a5' }}
+                      trailColor="var(--monitor-progress-trail)"
+                    />
+                    <div className="monitor-gauge-value">
+                      {formatBytes(hostMemoryUsed)} / {formatBytes(hostMetrics?.totalMemory)}
+                    </div>
+                  </div>
+                </div>
 
-                  <div className="monitor-gc-list">
-                    {appMetrics?.gcMetrics.map((item) => (
-                      <div className="monitor-gc-item" key={item.name}>
-                        <div>
-                          <Typography.Text strong>{item.name}</Typography.Text>
+                <div className="monitor-pill-row">
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">开机时长</span>
+                    <strong>{hostMetrics ? formatDuration(hostMetrics.uptimeSeconds) : '-'}</strong>
+                  </div>
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">Swap</span>
+                    <strong>{formatBytes(hostMetrics?.usedSwap)} / {formatBytes(hostMetrics?.totalSwap)}</strong>
+                  </div>
+                </div>
+
+                <div className="monitor-network-list">
+                  {(hostMetrics?.networks ?? []).slice(0, 3).map((item) => (
+                    <div className="monitor-network-item" key={item.name}>
+                      <div>
+                        <Typography.Text strong>{item.name}</Typography.Text>
+                      </div>
+                      <div className="monitor-network-flow">
+                        <span><ArrowDownOutlined /> {formatBytes(item.bytesRecv)}</span>
+                        <span><ArrowUpOutlined /> {formatBytes(item.bytesSent)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {hostMetrics && hostMetrics.networks.length === 0 ? (
+                    <div className="monitor-network-empty">暂无网络接口数据</div>
+                  ) : null}
+                </div>
+              </div>
+            </Card>
+          </Col>
+
+          <Col xs={24} xl={12}>
+            <Card className="feature-card monitor-card" title="应用监控">
+              <div className="monitor-card-body">
+                <div className="monitor-gauge-grid">
+                  <div className="monitor-gauge">
+                    <span className="monitor-kicker">进程 CPU</span>
+                    <Progress
+                      type="dashboard"
+                      percent={clampPercent(appMetrics?.processCpuLoad)}
+                      strokeColor={{ '0%': '#5b8cff', '100%': '#89a8ff' }}
+                      trailColor="var(--monitor-progress-trail)"
+                    />
+                  </div>
+                  <div className="monitor-gauge">
+                    <span className="monitor-kicker">堆内存</span>
+                    <Progress
+                      type="dashboard"
+                      percent={heapPercent}
+                      strokeColor={{ '0%': '#14b8a6', '100%': '#2dd4bf' }}
+                      trailColor="var(--monitor-progress-trail)"
+                    />
+                    <div className="monitor-gauge-value">
+                      {formatBytes(appMetrics?.heapMemory.used)} / {formatBytes(heapLimit)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="monitor-pill-row">
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">PID</span>
+                    <strong>{appMetrics?.pid ?? '-'}</strong>
+                  </div>
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">运行时长</span>
+                    <strong>{appMetrics ? formatDuration(Math.floor(appMetrics.uptimeMillis / 1000)) : '-'}</strong>
+                  </div>
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">虚拟内存</span>
+                    <strong>{formatBytes(appMetrics?.processMemoryBytes)}</strong>
+                  </div>
+                </div>
+
+                <div className="monitor-memory-band">
+                  <div className="monitor-inline-stat">
+                    <span>非堆内存</span>
+                    <strong>{formatBytes(appMetrics?.nonHeapMemory.used)} / {formatBytes(nonHeapLimit)}</strong>
+                  </div>
+                  <Progress
+                    percent={nonHeapPercent}
+                    showInfo={false}
+                    strokeColor={{ '0%': '#6366f1', '100%': '#8b5cf6' }}
+                    trailColor="var(--monitor-progress-trail)"
+                  />
+                </div>
+
+                <div className="monitor-gc-list">
+                  {appMetrics?.gcMetrics.map((item) => (
+                    <div className="monitor-gc-item" key={item.name}>
+                      <div>
+                        <Typography.Text strong>{item.name}</Typography.Text>
+                      </div>
+                      <div className="monitor-gc-meta">
+                        <span>{item.collectionCount} 次</span>
+                        <span>{item.collectionTime} ms</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+      </section>
+
+      <Modal
+        title="Docker 容器监控"
+        open={containerModalOpen}
+        onCancel={() => setContainerModalOpen(false)}
+        footer={null}
+        width={760}
+      >
+        {containerQuerying ? (
+          <div className="monitor-query-state">
+            <Progress percent={containerQueryProgress} status="active" strokeColor="#1677ff" />
+            <Typography.Text type="secondary">正在查询容器监控...</Typography.Text>
+          </div>
+        ) : (
+          <div className="monitor-card-body monitor-modal-body">
+            {!containerQueryStarted ? (
+              <div className="monitor-empty">
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="点击宿主机监控右上角按钮后查询 Docker 容器监控"
+                />
+              </div>
+            ) : !containerMetrics?.available ? (
+              <div className="monitor-empty">
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={containerQueryMessage || containerMetrics?.message || 'Docker 容器监控查询失败'}
+                />
+              </div>
+            ) : (
+              <>
+                <div className="monitor-pill-row">
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">容器总数</span>
+                    <strong>{containerMetrics.items.length}</strong>
+                  </div>
+                  <div className="monitor-pill">
+                    <span className="monitor-pill-label">运行中</span>
+                    <strong>{runningContainerCount}</strong>
+                  </div>
+                </div>
+
+                {containerQueryMessage ? (
+                  <div className="monitor-query-message is-warning">{containerQueryMessage}</div>
+                ) : null}
+
+                {containerMetrics.items.length === 0 ? (
+                  <div className="monitor-empty">
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前没有可展示的容器数据" />
+                  </div>
+                ) : (
+                  <div className="monitor-container-list">
+                    {containerMetrics.items.map((item) => (
+                      <div className="monitor-container-item" key={item.id}>
+                        <div className="monitor-container-top">
+                          <div className="monitor-container-meta">
+                            <Typography.Text strong>{item.name}</Typography.Text>
+                            <span className="monitor-container-image">{item.image}</span>
+                          </div>
+                          <Tag color={getContainerStateColor(item.state)}>{item.state}</Tag>
                         </div>
-                        <div className="monitor-gc-meta">
-                          <span>{item.collectionCount} 次</span>
-                          <span>{item.collectionTime} ms</span>
+                        <div className="monitor-inline-stat">
+                          <span>CPU 负载</span>
+                          <strong>{clampPercent(item.cpuUsage)}%</strong>
                         </div>
+                        <Progress
+                          percent={clampPercent(item.cpuUsage)}
+                          showInfo={false}
+                          strokeColor={{ '0%': '#f97316', '100%': '#fb7185' }}
+                          trailColor="var(--monitor-progress-trail)"
+                        />
+                        <div className="monitor-memory-note">内存占用 {formatBytes(item.memoryUsage)}</div>
                       </div>
                     ))}
                   </div>
-                </div>
-              </Card>
-            </Col>
-          </Row>
-        </section>
-      ) : null}
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
     </Space>
   );
 }

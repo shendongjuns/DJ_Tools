@@ -433,6 +433,7 @@ docker compose up -d --build
 
 - 默认数据库为 PostgreSQL。
 - `server` 镜像构建阶段使用 Docker BuildKit 的 Maven 本地仓库缓存，重复构建时会复用已下载依赖，不再每次重新下载。
+- 后端 Dockerfile 不声明外部 `# syntax=docker/dockerfile:<version>` 前端镜像，避免构建时因 Docker Hub 或本地镜像代理无法拉取 `docker/dockerfile` 而失败。
 - 后端镜像构建不再强制走阿里云镜像，默认直接使用 Maven Central，降低镜像源偶发超时导致的失败概率。
 - 后端镜像不再单独执行 `dependency:go-offline`，而是直接执行一次 `mvn package`，减少长时间无输出和额外插件解析等待。
 - 若某些宿主机禁用了 Docker BuildKit，需要在构建前显式设置 `DOCKER_BUILDKIT=1`，否则 Maven 缓存挂载不会生效。

@@ -2,9 +2,11 @@ package com.djtools.todo;
 
 import com.djtools.common.ApiException;
 import com.djtools.security.CurrentUser;
-import java.util.Arrays;
+import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,10 +14,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TodoService {
 
-    private final TodoMapper todoMapper;
+    private static final long DEFAULT_REMINDER_MINUTES = 10;
+    private static final long IMMINENT_REMINDER_MINUTES = 1;
 
+    private final TodoMapper todoMapper;
+    private final Clock clock;
+
+    @Autowired
     public TodoService(TodoMapper todoMapper) {
+        this(todoMapper, Clock.systemDefaultZone());
+    }
+
+    TodoService(TodoMapper todoMapper, Clock clock) {
         this.todoMapper = todoMapper;
+        this.clock = clock;
     }
 
     @Transactional
@@ -37,16 +49,19 @@ public class TodoService {
     @Transactional
     public TodoResponse update(CurrentUser currentUser, Long id, TodoRequest request) {
         TodoItem todoItem = requireTodo(currentUser.getId(), id);
+        OffsetDateTime previousDueAt = todoItem.getDueAt();
+        OffsetDateTime previousRemindAt = todoItem.getRemindAt();
+        TodoStatus previousStatus = todoItem.getStatus();
         todoItem.setTitle(request.title());
         todoItem.setDescription(request.description());
         todoItem.setDueAt(request.dueAt());
-        todoItem.setRemindAt(request.remindAt());
         applyStatusTimes(
                 todoItem,
                 request.status() == null ? TodoStatus.PENDING : request.status(),
                 request.completedAt(),
                 request.cancelledAt()
         );
+        syncReminderTime(todoItem, previousDueAt, previousStatus, previousRemindAt);
         todoMapper.update(todoItem);
         return toResponse(requireTodo(currentUser.getId(), id));
     }
@@ -54,7 +69,11 @@ public class TodoService {
     @Transactional
     public TodoResponse updateStatus(CurrentUser currentUser, Long id, TodoStatusUpdateRequest request) {
         TodoItem todoItem = requireTodo(currentUser.getId(), id);
+        OffsetDateTime previousDueAt = todoItem.getDueAt();
+        OffsetDateTime previousRemindAt = todoItem.getRemindAt();
+        TodoStatus previousStatus = todoItem.getStatus();
         applyStatusTimes(todoItem, request.status(), request.completedAt(), request.cancelledAt());
+        syncReminderTime(todoItem, previousDueAt, previousStatus, previousRemindAt);
         todoMapper.updateStatus(todoItem);
         return toResponse(requireTodo(currentUser.getId(), id));
     }
@@ -84,13 +103,13 @@ public class TodoService {
         todoItem.setTitle(request.title());
         todoItem.setDescription(request.description());
         todoItem.setDueAt(request.dueAt());
-        todoItem.setRemindAt(request.remindAt());
         applyStatusTimes(
                 todoItem,
                 request.status() == null ? TodoStatus.PENDING : request.status(),
                 request.completedAt(),
                 request.cancelledAt()
         );
+        syncReminderTime(todoItem, null, null, null);
         return todoItem;
     }
 
@@ -122,18 +141,63 @@ public class TodoService {
         todoItem.setStatus(status);
         switch (status) {
             case COMPLETED -> {
-                todoItem.setCompletedAt(completedAt != null ? completedAt : OffsetDateTime.now());
+                todoItem.setCompletedAt(completedAt != null ? completedAt : OffsetDateTime.now(clock));
                 todoItem.setCancelledAt(null);
             }
             case CANCELLED -> {
                 todoItem.setCompletedAt(null);
-                todoItem.setCancelledAt(cancelledAt != null ? cancelledAt : OffsetDateTime.now());
+                todoItem.setCancelledAt(cancelledAt != null ? cancelledAt : OffsetDateTime.now(clock));
             }
             default -> {
                 todoItem.setCompletedAt(null);
                 todoItem.setCancelledAt(null);
             }
         }
+    }
+
+    private void syncReminderTime(
+            TodoItem todoItem,
+            OffsetDateTime previousDueAt,
+            TodoStatus previousStatus,
+            OffsetDateTime previousRemindAt
+    ) {
+        if (shouldKeepExistingReminder(todoItem, previousDueAt, previousStatus, previousRemindAt)) {
+            todoItem.setRemindAt(previousRemindAt);
+            return;
+        }
+        todoItem.setRemindAt(calculateReminderTime(todoItem.getDueAt(), todoItem.getStatus()));
+    }
+
+    private boolean shouldKeepExistingReminder(
+            TodoItem todoItem,
+            OffsetDateTime previousDueAt,
+            TodoStatus previousStatus,
+            OffsetDateTime previousRemindAt
+    ) {
+        return previousRemindAt != null
+                && previousDueAt != null
+                && previousDueAt.equals(todoItem.getDueAt())
+                && isReminderActiveStatus(previousStatus)
+                && isReminderActiveStatus(todoItem.getStatus());
+    }
+
+    private boolean isReminderActiveStatus(TodoStatus status) {
+        return status != null && status != TodoStatus.COMPLETED && status != TodoStatus.CANCELLED;
+    }
+
+    private OffsetDateTime calculateReminderTime(OffsetDateTime dueAt, TodoStatus status) {
+        if (dueAt == null || status == TodoStatus.COMPLETED || status == TodoStatus.CANCELLED) {
+            return null;
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        if (!dueAt.isAfter(now.plusMinutes(IMMINENT_REMINDER_MINUTES))) {
+            return now;
+        }
+        if (dueAt.isBefore(now.plusMinutes(DEFAULT_REMINDER_MINUTES))) {
+            return dueAt.minusMinutes(IMMINENT_REMINDER_MINUTES);
+        }
+        return dueAt.minusMinutes(DEFAULT_REMINDER_MINUTES);
     }
 
     private void normalizeExpiredTodos(Long userId) {

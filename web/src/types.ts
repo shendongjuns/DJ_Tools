@@ -171,4 +171,5 @@ export interface AppMetrics {
   nonHeapMemory: { used: number; committed: number; max: number };
   gcMetrics: Array<{ name: string; collectionCount: number; collectionTime: number }>;
   containerDeployment: boolean;
+  dockerMonitoringAvailable: boolean;
 }

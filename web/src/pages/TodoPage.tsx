@@ -1,5 +1,5 @@
 import { DeleteOutlined, DownOutlined, PlusOutlined } from '@ant-design/icons';
-import { App, Button, Card, DatePicker, Dropdown, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
+import { App, Button, Card, DatePicker, Dropdown, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { todoApi } from '../api/services';
@@ -69,7 +69,6 @@ export function TodoPage() {
     const payload = {
       ...values,
       dueAt: values.dueAt ? (values.dueAt as Dayjs).toISOString() : null,
-      remindAt: values.remindAt ? (values.remindAt as Dayjs).toISOString() : null,
       completedAt: overrides?.completedAt ?? null,
       cancelledAt: overrides?.cancelledAt ?? null,
     };
@@ -146,7 +145,7 @@ export function TodoPage() {
       <Table
         rowKey="id"
         dataSource={items}
-        scroll={{ x: 1360 }}
+        scroll={{ x: 1180 }}
         columns={[
           { title: '标题', dataIndex: 'title', width: 200 },
           { title: '描述', dataIndex: 'description', ellipsis: true },
@@ -184,7 +183,6 @@ export function TodoPage() {
             },
           },
           { title: '截止时间', dataIndex: 'dueAt', width: 180, render: formatDateTime },
-          { title: '提醒时间', dataIndex: 'remindAt', width: 180, render: formatDateTime },
           { title: '完成时间', dataIndex: 'completedAt', width: 180, render: formatDateTime },
           { title: '取消时间', dataIndex: 'cancelledAt', width: 180, render: formatDateTime },
           {
@@ -199,23 +197,28 @@ export function TodoPage() {
                     form.setFieldsValue({
                       ...record,
                       dueAt: record.dueAt ? dayjs(record.dueAt) : null,
-                      remindAt: record.remindAt ? dayjs(record.remindAt) : null,
                     });
                     setOpen(true);
                   }}
                 >
                   编辑
                 </Button>
-                <Button
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={async () => {
+                <Popconfirm
+                  title="确认删除该待办事项吗？"
+                  okText="确认"
+                  cancelText="取消"
+                  onConfirm={async () => {
                     await todoApi.remove(record.id);
                     message.success('任务已删除');
                     await loadTodos(keyword, selectedStatuses);
                   }}
-                />
+                >
+                  <Button
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                  />
+                </Popconfirm>
               </Space>
             ),
           },
@@ -272,11 +275,15 @@ export function TodoPage() {
             }}
           </Form.Item>
           <Form.Item label="截止时间" name="dueAt">
-            <DatePicker showTime style={{ width: '100%' }} />
+            <DatePicker
+              showTime={{ format: 'HH:mm', showSecond: false }}
+              format="YYYY-MM-DD HH:mm"
+              style={{ width: '100%' }}
+            />
           </Form.Item>
-          <Form.Item label="提醒时间" name="remindAt">
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            默认截止前 10 分钟提醒，不足 10 分钟则提前 1 分钟，不足 1 分钟则立即提醒。
+          </Typography.Paragraph>
         </Form>
       </Modal>
 
@@ -327,7 +334,11 @@ export function TodoPage() {
             name="actionTime"
             rules={[{ required: true, message: '请选择时间' }]}
           >
-            <DatePicker showTime style={{ width: '100%' }} />
+            <DatePicker
+              showTime={{ format: 'HH:mm', showSecond: false }}
+              format="YYYY-MM-DD HH:mm"
+              style={{ width: '100%' }}
+            />
           </Form.Item>
         </Form>
       </Modal>

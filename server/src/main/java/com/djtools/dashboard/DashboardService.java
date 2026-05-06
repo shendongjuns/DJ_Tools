@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 public class DashboardService {
 
     private static final Path DOCKER_ENV_FILE = Path.of("/.dockerenv");
-    private static final Path DOCKER_SOCKET_FILE = Path.of("/var/run/docker.sock");
     private final TodoMapper todoMapper;
     private final TodoService todoService;
     private final NoteService noteService;
@@ -124,7 +123,8 @@ public class DashboardService {
                 new AppMetricsResponse.MemoryMetric(heap.getUsed(), heap.getCommitted(), heap.getMax()),
                 new AppMetricsResponse.MemoryMetric(nonHeap.getUsed(), nonHeap.getCommitted(), nonHeap.getMax()),
                 gcMetrics,
-                isContainerDeployment()
+                isContainerDeployment(),
+                containerMetricsSnapshotService.isAvailable()
         );
     }
 

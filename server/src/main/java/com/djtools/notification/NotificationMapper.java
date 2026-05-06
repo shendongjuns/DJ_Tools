@@ -1,5 +1,6 @@
 package com.djtools.notification;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -19,6 +20,7 @@ public interface NotificationMapper {
             @Param("userId") Long userId,
             @Param("type") String type,
             @Param("relatedType") String relatedType,
-            @Param("relatedId") Long relatedId
+            @Param("relatedId") Long relatedId,
+            @Param("remindAt") OffsetDateTime remindAt
     );
 }
