@@ -7,24 +7,34 @@ import { storage } from '../utils/storage';
 interface ThemeContextValue {
   themeId: string;
   setThemeId: (themeId: string) => void;
+  cursorThemeId: string;
+  setCursorThemeId: (cursorThemeId: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState(storage.getTheme() ?? 'cartoon');
+  const [cursorThemeId, setCursorThemeIdState] = useState(storage.getCursorTheme() ?? 'system');
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeId;
     storage.setTheme(themeId);
   }, [themeId]);
 
+  useEffect(() => {
+    document.documentElement.dataset.cursorTheme = cursorThemeId;
+    storage.setCursorTheme(cursorThemeId);
+  }, [cursorThemeId]);
+
   const value = useMemo(
     () => ({
       themeId,
       setThemeId: setThemeIdState,
+      cursorThemeId,
+      setCursorThemeId: setCursorThemeIdState,
     }),
-    [themeId],
+    [themeId, cursorThemeId],
   );
 
   const preset = getThemePreset(themeId);

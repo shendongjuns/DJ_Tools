@@ -8,7 +8,7 @@ import {
   SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Drawer, Dropdown, Form, Input, Layout, Menu, Space, Typography, message } from 'antd';
+import { Avatar, Button, Drawer, Dropdown, Form, Input, Layout, Menu, Select, Space, Typography, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { userApi } from '../api/services';
@@ -16,13 +16,23 @@ import { GlobalSearch } from '../components/GlobalSearch';
 import { NotificationBell } from '../components/NotificationBell';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { useAuth } from '../store/AuthContext';
+import { useThemeContext } from '../store/ThemeContext';
 
 const { Header, Content } = Layout;
+
+const cursorThemeOptions = [
+  { label: '系统默认', value: 'system' },
+  { label: '光环指针', value: 'halo' },
+  { label: '星点指针', value: 'spark' },
+  { label: '魔法星轨', value: 'starlight' },
+  { label: '墨点指针', value: 'ink' },
+];
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, logout, refreshProfile } = useAuth();
+  const { cursorThemeId, setCursorThemeId } = useThemeContext();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
@@ -135,6 +145,15 @@ export function AppLayout() {
           <Button type="primary" htmlType="submit" block>
             保存信息
           </Button>
+        </Form>
+
+        <Typography.Title level={5} style={{ marginTop: 28 }}>
+          界面偏好
+        </Typography.Title>
+        <Form layout="vertical">
+          <Form.Item label="鼠标指针">
+            <Select value={cursorThemeId} options={cursorThemeOptions} onChange={setCursorThemeId} />
+          </Form.Item>
         </Form>
 
         <Typography.Title level={5} style={{ marginTop: 28 }}>

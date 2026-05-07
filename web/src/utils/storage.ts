@@ -2,6 +2,7 @@ const TOKEN_KEY = 'dj-tools-token';
 const REFRESH_TOKEN_KEY = 'dj-tools-refresh-token';
 const PROFILE_KEY = 'dj-tools-profile';
 const THEME_KEY = 'dj-tools-theme';
+const CURSOR_THEME_KEY = 'dj-tools-cursor-theme';
 
 export const storage = {
   getToken: () => localStorage.getItem(TOKEN_KEY),
@@ -18,5 +19,7 @@ export const storage = {
   clearProfile: () => localStorage.removeItem(PROFILE_KEY),
   getTheme: () => localStorage.getItem(THEME_KEY),
   setTheme: (value: string) => localStorage.setItem(THEME_KEY, value),
+  getCursorTheme: () => localStorage.getItem(CURSOR_THEME_KEY),
+  setCursorTheme: (value: string) => localStorage.setItem(CURSOR_THEME_KEY, value),
 };
 

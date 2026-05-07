@@ -1,5 +1,5 @@
 import { FolderAddOutlined, PlusOutlined, TagsOutlined } from '@ant-design/icons';
-import { App, Button, Card, Empty, Form, Input, Modal, Popover, Select, Space, Tag, Typography } from 'antd';
+import { Button, Card, Empty, Input, Popover, Select, Space, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { noteApi } from '../api/services';
@@ -8,15 +8,12 @@ import { formatDateTime } from '../utils/format';
 
 export function NotesPage() {
   const navigate = useNavigate();
-  const { message } = App.useApp();
   const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [folderId, setFolderId] = useState<number | undefined>();
   const [tag, setTag] = useState<string | undefined>();
   const [keyword, setKeyword] = useState('');
-  const [folderModalOpen, setFolderModalOpen] = useState(false);
-  const [folderForm] = Form.useForm();
 
   async function loadMeta() {
     const [folderData, tagData] = await Promise.all([noteApi.folders(), noteApi.tags()]);
@@ -66,14 +63,9 @@ export function NotesPage() {
               onSearch={() => void loadNotes()}
             />
           </Space>
-          <Space wrap>
-            <Button icon={<FolderAddOutlined />} onClick={() => setFolderModalOpen(true)}>
-              新建文件夹
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/notes/new')}>
-              新建笔记
-            </Button>
-          </Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/notes/new')}>
+            新建笔记
+          </Button>
         </Space>
       </Card>
 
@@ -111,32 +103,6 @@ export function NotesPage() {
           ))}
         </div>
       )}
-
-      <Modal
-        open={folderModalOpen}
-        title="新建文件夹"
-        onCancel={() => setFolderModalOpen(false)}
-        onOk={() => folderForm.submit()}
-      >
-        <Form
-          form={folderForm}
-          layout="vertical"
-          onFinish={async (values) => {
-            await noteApi.createFolder(values);
-            message.success('文件夹已创建');
-            setFolderModalOpen(false);
-            folderForm.resetFields();
-            await loadMeta();
-          }}
-        >
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入文件夹名称' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item label="排序" name="sortOrder" initialValue={0} rules={[{ required: true, message: '请输入排序值' }]}>
-            <Input type="number" />
-          </Form.Item>
-        </Form>
-      </Modal>
     </Space>
   );
 }

@@ -1,12 +1,13 @@
-import { FileOutlined, FolderAddOutlined, PaperClipOutlined, ShareAltOutlined } from '@ant-design/icons';
-import { App, Button, Card, Form, Image, Input, Modal, Popconfirm, Select, Space, Tabs, Tag, Typography, Upload } from 'antd';
-import { MdCatalog, MdEditor, MdPreview } from 'md-editor-rt';
+import { DeleteOutlined, FileOutlined, FolderAddOutlined, PaperClipOutlined, ShareAltOutlined } from '@ant-design/icons';
+import { App, Button, Card, Form, Image, Input, Modal, Popconfirm, Select, Space, Tabs, Tag, Tooltip, Typography, Upload } from 'antd';
+import { MdEditor, MdPreview } from 'md-editor-rt';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { MarkdownCatalog } from '../components/MarkdownCatalog';
 import { noteApi } from '../api/services';
 import type { NoteDetail, NoteFolder } from '../types';
 import { formatDateTime } from '../utils/format';
+import { headingId } from '../utils/markdown';
 import { storage } from '../utils/storage';
 
 const shareOptions = [
@@ -15,11 +16,6 @@ const shareOptions = [
   { label: '30 天', value: 'THIRTY_DAYS' },
   { label: '永久', value: 'PERMANENT' },
 ];
-
-function headingId(text: string, _level: number, index: number) {
-  const slug = text.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '');
-  return slug ? `${slug}-${index}` : `heading-${index}`;
-}
 
 function absoluteAppUrl(path: string) {
   return new URL(path, window.location.origin).href;
@@ -52,6 +48,7 @@ export function NoteDetailPage() {
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [previewImageId, setPreviewImageId] = useState<number | null>(null);
   const savingRef = useRef(false);
   const [form] = Form.useForm();
   const [folderForm] = Form.useForm();
@@ -109,18 +106,71 @@ export function NoteDetailPage() {
     callback(uploaded.map((item) => authenticatedAttachmentUrl(item.id)));
   }
 
+  function renderImageAttachmentCard(item: NonNullable<NoteDetail['attachments']>[number], noteId: number) {
+    const imageUrl = authenticatedAttachmentUrl(item.id);
+    return (
+      <Tooltip
+        key={item.id}
+        title={(
+          <div>
+            <div>{item.originalFilename}</div>
+            <div>{formatDateTime(item.createdAt)}</div>
+          </div>
+        )}
+      >
+        <Card size="small" className="attachment-card image-attachment-card">
+          <div className="image-attachment-frame">
+            <Image
+              className="attachment-thumb"
+              src={imageUrl}
+              alt={item.originalFilename}
+              preview={{
+                visible: previewImageId === item.id,
+                onVisibleChange: (visible) => setPreviewImageId(visible ? item.id : null),
+              }}
+            />
+            <div className="attachment-image-overlay">
+              <Popconfirm
+                title="确认删除该附件吗？"
+                okText="确认"
+                cancelText="取消"
+                onConfirm={async () => {
+                  await noteApi.deleteAttachment(item.id);
+                  message.success('附件已删除');
+                  await loadDetail(noteId);
+                }}
+              >
+                <Button
+                  danger
+                  type="text"
+                  shape="circle"
+                  className="attachment-image-action"
+                  icon={<DeleteOutlined />}
+                  aria-label="删除图片"
+                />
+              </Popconfirm>
+            </div>
+          </div>
+          <Typography.Text ellipsis className="attachment-image-name">
+            {item.originalFilename}
+          </Typography.Text>
+        </Card>
+      </Tooltip>
+    );
+  }
+
   function renderAttachmentCard(item: NonNullable<NoteDetail['attachments']>[number], noteId: number) {
     const image = isImageAttachment(item.contentType, item.originalFilename);
+    if (image) {
+      return renderImageAttachmentCard(item, noteId);
+    }
+
     return (
-      <Card key={item.id} size="small" className={image ? 'attachment-card image-attachment-card' : 'attachment-card'}>
+      <Card key={item.id} size="small" className="attachment-card">
         <Space align="start" style={{ width: '100%' }}>
-          {image ? (
-            <Image className="attachment-thumb" src={authenticatedAttachmentUrl(item.id)} alt={item.originalFilename} />
-          ) : (
-            <div className="attachment-file-icon">
-              <FileOutlined />
-            </div>
-          )}
+          <div className="attachment-file-icon">
+            <FileOutlined />
+          </div>
           <div className="attachment-meta">
             <Typography.Text>{item.originalFilename}</Typography.Text>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
@@ -196,17 +246,6 @@ export function NoteDetailPage() {
         </Space>
       </>
     );
-  }
-
-  function handleCatalogClick(event: MouseEvent, tocItem: { text: string; level: number; index: number }) {
-    const scrollElement = document.getElementById(`${editorId}-preview`);
-    const headingElement = document.getElementById(headingId(tocItem.text, tocItem.level, tocItem.index));
-    if (!scrollElement || !headingElement) {
-      return;
-    }
-    event.preventDefault();
-    const scrollTop = headingElement.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop;
-    scrollElement.scrollTo({ top: scrollTop, behavior: 'smooth' });
   }
 
   function renderShareManager() {
@@ -393,11 +432,11 @@ export function NoteDetailPage() {
                           </Button>
                         </Space>
                       </div>
-                      <MdCatalog
-                        editorId={editorId}
-                        mdHeadingId={headingId}
-                        scrollElement={`#${editorId}-preview`}
-                        onClick={handleCatalogClick}
+                      <MarkdownCatalog
+                        content={content}
+                        scrollElementId={`${editorId}-preview`}
+                        offsetTop={18}
+                        scrollOffset={12}
                       />
                     </aside>
                   </div>
