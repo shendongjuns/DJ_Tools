@@ -3,6 +3,7 @@ package com.djtools.note;
 import com.djtools.common.ApiException;
 import com.djtools.config.MinioProperties;
 import com.djtools.security.CurrentUser;
+import io.minio.GetObjectArgs;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.MinioClient;
@@ -134,6 +135,28 @@ public class NoteService {
         return noteAttachmentMapper.findByNoteId(noteId, currentUser.getId()).stream().map(this::toAttachmentResponse).toList();
     }
 
+    public NoteAttachment findAttachment(CurrentUser currentUser, Long attachmentId) {
+        NoteAttachment attachment = noteAttachmentMapper.findById(attachmentId, currentUser.getId());
+        if (attachment == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "附件不存在");
+        }
+        return attachment;
+    }
+
+    public InputStream openAttachment(CurrentUser currentUser, Long attachmentId) {
+        NoteAttachment attachment = findAttachment(currentUser, attachmentId);
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(minioProperties.getBucket())
+                            .object(attachment.getObjectName())
+                            .build()
+            );
+        } catch (Exception exception) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "附件读取失败: " + exception.getMessage());
+        }
+    }
+
     @Transactional
     public NoteAttachmentResponse uploadAttachment(CurrentUser currentUser, Long noteId, MultipartFile file) {
         requireNote(currentUser.getId(), noteId);
@@ -197,12 +220,25 @@ public class NoteService {
     }
 
     @Transactional
-    public void disableShare(CurrentUser currentUser, Long shareId) {
-        noteShareMapper.disable(shareId, currentUser.getId());
-        for (Note note : noteMapper.findAll(currentUser.getId(), null, null, null)) {
-            long activeShares = noteShareMapper.countActiveByNoteId(note.getId(), currentUser.getId());
-            noteMapper.updateShared(note.getId(), currentUser.getId(), activeShares > 0);
+    public NoteShareResponse updateShare(CurrentUser currentUser, Long shareId, NoteShareRequest request) {
+        NoteShare noteShare = noteShareMapper.findById(shareId, currentUser.getId());
+        if (noteShare == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "分享链接不存在");
         }
+        noteShareMapper.updateExpiresAt(shareId, currentUser.getId(), resolveExpireTime(request.expireOption()));
+        NoteShare updated = noteShareMapper.findById(shareId, currentUser.getId());
+        noteMapper.updateShared(updated.getNoteId(), currentUser.getId(), noteShareMapper.countActiveByNoteId(updated.getNoteId(), currentUser.getId()) > 0);
+        return toShareResponse(updated, "");
+    }
+
+    @Transactional
+    public void deleteShare(CurrentUser currentUser, Long shareId) {
+        NoteShare noteShare = noteShareMapper.findById(shareId, currentUser.getId());
+        if (noteShare == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "分享链接不存在");
+        }
+        noteShareMapper.delete(shareId, currentUser.getId());
+        noteMapper.updateShared(noteShare.getNoteId(), currentUser.getId(), noteShareMapper.countActiveByNoteId(noteShare.getNoteId(), currentUser.getId()) > 0);
     }
 
     public SharedNoteResponse getSharedNote(String token) {

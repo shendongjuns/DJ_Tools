@@ -1,20 +1,28 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件用于说明 Claude Code（claude.ai/code）在本仓库中工作时应遵循的项目约定。
 
-## Project overview
+## 项目概览
 
-DJ_Tools is a Chinese personal workspace app with a separated frontend/backend and a three-directory monorepo layout:
+DJ_Tools 是一个中文个人工作台项目，采用前后端分离架构和三目录单仓库结构：
 
-- `web/`: React 19 + Vite + TypeScript frontend using Ant Design and `md-editor-rt`
-- `server/`: Java 21 Spring Boot 3.5 backend using Spring Security, MyBatis, PostgreSQL, Flyway, MinIO, Actuator, OSHI, and Docker Java
-- `ops/`: Docker Compose, PostgreSQL, Nginx, and deployment configuration
+- `web/`：React 19 + Vite + TypeScript 前端，使用 Ant Design 和 `md-editor-rt`
+- `server/`：Java 21 + Spring Boot 3.5 后端，使用 Spring Security、MyBatis、PostgreSQL、Flyway、MinIO、Actuator、OSHI 和 Docker Java
+- `ops/`：Docker Compose、PostgreSQL、Nginx 和部署配置
 
-The V1 product scope includes dashboard monitoring, TODOs, personal notes, global search, notification bell, and theme switching. UI text and product-facing behavior are Chinese by default. The built-in initial account is `admin` / `123456`, and first login requires password change.
+V1 产品范围包括首页监控、TODO、个人笔记、全局搜索、通知铃铛和主题切换。界面文案和面向产品的行为默认使用中文。内置初始账号为 `admin` / `123456`，首次登录后需要修改密码。
 
-## Common commands
+## 项目专用 Skill 使用规则
 
-### Frontend
+- 开发或审查 SQL、数据库迁移、MyBatis SQL 映射、PostgreSQL 配置或查询优化时，使用 `postgresql-optimization`、
+`postgresql-code-review`  skill。
+- 开发 `server/` 下的 Java 或 Spring Boot 后端代码时，使用 `java-springboot` skill。
+- 开发 `web/` 下的 Web UI、React、TypeScript、样式或前端行为时，使用 `frontend-design`、`vercel-react-best-practices`  skill。
+- 开发 Dockerfile、Docker Compose 配置、容器构建行为或 `ops/` 下的部署文件时，使用 `multi-stage-dockerfile`  skill。
+
+## 常用命令
+
+### 前端
 
 ```bash
 cd web
@@ -24,12 +32,12 @@ npm run build
 npm run preview
 ```
 
-- Node requirement: `>=25.0.0`
-- Dev server: `http://localhost:5173`
-- Vite proxies `/api` and `/share` to `VITE_PROXY_TARGET` or `http://localhost:8080`
-- There is currently no frontend lint or test script; `npm run build` runs `tsc -b && vite build`
+- Node.js 要求：`>=25.0.0`
+- 开发服务器：`http://localhost:5173`
+- Vite 将 `/api` 和 `/share` 代理到 `VITE_PROXY_TARGET`，未配置时默认为 `http://localhost:8080`
+- 当前没有前端 lint 或 test 脚本；`npm run build` 会执行 `tsc -b && vite build`
 
-### Backend
+### 后端
 
 ```bash
 cd server
@@ -40,12 +48,12 @@ mvn test -Dtest=DashboardServiceTests#methodName
 mvn -DskipTests package
 ```
 
-- Java requirement: 21
-- Default backend address: `http://localhost:8080`
-- There is no Maven wrapper; use the system `mvn`
-- There is currently no Checkstyle/Spotless/PMD lint command
+- Java 要求：21
+- 默认后端地址：`http://localhost:8080`
+- 当前没有 Maven Wrapper；使用系统 `mvn`
+- 当前没有 Checkstyle、Spotless 或 PMD lint 命令
 
-### Local infrastructure
+### 本地基础设施
 
 ```bash
 cd ops
@@ -55,14 +63,14 @@ docker compose logs -f postgres minio
 docker compose config
 ```
 
-Defaults:
+默认地址：
 
-- PostgreSQL: `localhost:5432`
-- MinIO API: `http://localhost:9000`
-- MinIO console: `http://localhost:9001`
-- Data directories are under `ops/data/`
+- PostgreSQL：`localhost:5432`
+- MinIO API：`http://localhost:9000`
+- MinIO 控制台：`http://localhost:9001`
+- 数据目录位于 `ops/data/`
 
-### Full Docker Compose deployment
+### 完整 Docker Compose 部署
 
 ```bash
 cd ops
@@ -75,51 +83,51 @@ docker compose logs -f server
 docker compose logs -f web
 ```
 
-The server Docker build uses BuildKit cache mounts for Maven dependencies. Keep BuildKit enabled for compose builds.
+后端 Docker 构建使用 BuildKit 缓存 Maven 依赖。执行 Compose 构建时保持启用 BuildKit。
 
-## Architecture notes
+## 架构说明
 
-### Frontend structure
+### 前端结构
 
-- App entry and routing: `web/src/main.tsx`, `web/src/App.tsx`, `web/src/router/index.tsx`
-- API layer: `web/src/api/client.ts`, `web/src/api/services.ts`
-- State/context: `web/src/store/AuthContext.tsx`, `web/src/store/ThemeContext.tsx`
-- Main pages: dashboard, TODO, notes, note detail, shared note, login, initial password under `web/src/pages/`
-- Cross-cutting UI: global search, notification bell, theme switcher under `web/src/components/`
-- Theme presets are JSON files in `web/src/theme/presets/`; current presets are `cartoon`, `default`, `dark`, `illustration`, and `glass`
+- 应用入口与路由：`web/src/main.tsx`、`web/src/App.tsx`、`web/src/router/index.tsx`
+- API 层：`web/src/api/client.ts`、`web/src/api/services.ts`
+- 状态与上下文：`web/src/store/AuthContext.tsx`、`web/src/store/ThemeContext.tsx`
+- 主要页面：首页、TODO、笔记、笔记详情、分享笔记、登录、初始密码修改，位于 `web/src/pages/`
+- 通用 UI：全局搜索、通知铃铛、主题切换，位于 `web/src/components/`
+- 主题预设为 `web/src/theme/presets/` 下的 JSON 文件；当前预设包括 `cartoon`、`default`、`dark`、`illustration` 和 `glass`
 
-### Backend structure
+### 后端结构
 
-Backend packages are organized by domain under `server/src/main/java/com/djtools/`:
+后端按领域组织在 `server/src/main/java/com/djtools/` 下：
 
-- `auth`: login, refresh token, initial password flow
-- `security`: JWT/security integration
-- `user`: profile/account behavior
-- `todo`: TODO CRUD and status handling
-- `notification`: reminder/notification handling
-- `note`: folders, tags, notes, attachments, shares
-- `search`: global search
-- `dashboard`: TODO/note summaries and host/container/app metrics
-- `config` and `common`: shared configuration and response/error plumbing
+- `auth`：登录、刷新令牌、初始密码修改流程
+- `security`：JWT 与安全集成
+- `user`：个人资料与账号行为
+- `todo`：TODO CRUD 与状态处理
+- `notification`：提醒与通知处理
+- `note`：文件夹、标签、笔记、附件、分享
+- `search`：全局搜索
+- `dashboard`：TODO/笔记概览，以及宿主机、容器、应用指标
+- `config` 和 `common`：共享配置、响应和错误处理
 
-Configuration lives in `server/src/main/resources/application.yml`. Logs are configured by `server/src/main/resources/logback-spring.xml`.
+配置文件位于 `server/src/main/resources/application.yml`。日志由 `server/src/main/resources/logback-spring.xml` 配置。
 
-### Data access and migrations
+### 数据访问与迁移
 
-- PostgreSQL is the supported database.
-- MyBatis mapper interfaces should contain method definitions only; SQL belongs in `server/src/main/resources/mapper/*.xml`.
-- Flyway migrations live in `server/src/main/resources/db/migration/`.
-- `V1__init_schema_and_seed.sql` is the current baseline schema, indexes, comments, and default admin seed for the unreleased first version.
-- After the first version is published, do not edit already-applied Flyway migrations; add `V2__*.sql`, `V3__*.sql`, etc. for schema/data changes.
-- Search uses PostgreSQL `pg_trgm` indexes.
+- PostgreSQL 是项目支持的数据库。
+- MyBatis Mapper 接口只保留方法定义；SQL 放在 `server/src/main/resources/mapper/*.xml` 中。
+- Flyway 迁移位于 `server/src/main/resources/db/migration/`。
+- `V1__init_schema_and_seed.sql` 是当前未发布首版的基线结构，包含表结构、索引、注释和默认管理员账号种子数据。
+- 首个版本发布后，不要修改已经执行过的 Flyway 迁移；结构或数据变更应新增 `V2__*.sql`、`V3__*.sql` 等迁移文件。
+- 搜索能力使用 PostgreSQL `pg_trgm` 索引。
 
-### Operations
+### 运维
 
-`ops/docker-compose.yml` defines four services:
+`ops/docker-compose.yml` 定义了四个服务：
 
-- `postgres`: PostgreSQL 18 with config from `ops/postgres/postgresql.conf`
-- `minio`: object storage for note attachments
-- `server`: Spring Boot backend, mounts `/var/run/docker.sock` read-only for container metrics and writes logs to `ops/logs/server`
-- `web`: Nginx-hosted frontend
+- `postgres`：PostgreSQL 18，使用 `ops/postgres/postgresql.conf` 中的配置
+- `minio`：用于笔记附件的对象存储
+- `server`：Spring Boot 后端，只读挂载 `/var/run/docker.sock` 用于容器指标采集，并将日志写入 `ops/logs/server`
+- `web`：基于 Nginx 托管的前端
 
-The backend automatically skips Docker container metrics when not running in a container or when Docker socket access is unavailable.
+后端在非容器环境或 Docker Socket 不可用时，会自动跳过 Docker 容器指标采集。

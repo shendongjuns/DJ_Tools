@@ -33,13 +33,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+        String token = null;
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            token = authorization.substring(7);
+        } else if ("/api/notifications/stream".equals(request.getRequestURI()) || isAttachmentContentRequest(request)) {
+            token = request.getParameter("access_token");
+        }
+        if (token == null || token.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            String token = authorization.substring(7);
             Claims claims = jwtService.parse(token);
             Long userId = Long.parseLong(claims.getSubject());
             UserAccount userAccount = userAccountMapper.findById(userId);
@@ -55,6 +60,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isAttachmentContentRequest(HttpServletRequest request) {
+        return "GET".equals(request.getMethod())
+                && request.getRequestURI().matches("/api/note-attachments/\\d+/content")
+                && request.getParameter("access_token") != null;
     }
 }
 

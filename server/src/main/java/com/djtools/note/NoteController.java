@@ -3,7 +3,12 @@ package com.djtools.note;
 import com.djtools.common.ApiResponse;
 import com.djtools.security.SecurityUtils;
 import jakarta.validation.Valid;
+import java.io.InputStream;
 import java.util.List;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -81,6 +86,19 @@ public class NoteController {
         return ApiResponse.success(noteService.uploadAttachment(SecurityUtils.currentUser(), id, file), "附件已上传");
     }
 
+    @GetMapping("/api/note-attachments/{id}/content")
+    public ResponseEntity<InputStreamResource> getAttachmentContent(@PathVariable Long id) {
+        NoteAttachment attachment = noteService.findAttachment(SecurityUtils.currentUser(), id);
+        InputStream inputStream = noteService.openAttachment(SecurityUtils.currentUser(), id);
+        MediaType mediaType = attachment.getContentType() == null || attachment.getContentType().isBlank()
+                ? MediaType.APPLICATION_OCTET_STREAM
+                : MediaType.parseMediaType(attachment.getContentType());
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + attachment.getOriginalFilename() + "\"")
+                .body(new InputStreamResource(inputStream));
+    }
+
     @DeleteMapping("/api/note-attachments/{id}")
     public ApiResponse<Void> deleteAttachment(@PathVariable Long id) {
         noteService.deleteAttachment(SecurityUtils.currentUser(), id);
@@ -100,13 +118,18 @@ public class NoteController {
         return ApiResponse.success(noteService.createShare(SecurityUtils.currentUser(), id, request, baseUrl), "分享链接已生成");
     }
 
-    @DeleteMapping("/api/note-shares/{id}")
-    public ApiResponse<Void> disableShare(@PathVariable Long id) {
-        noteService.disableShare(SecurityUtils.currentUser(), id);
-        return ApiResponse.success(null, "分享链接已关闭");
+    @PutMapping("/api/note-shares/{id}")
+    public ApiResponse<NoteShareResponse> updateShare(@PathVariable Long id, @Valid @RequestBody NoteShareRequest request) {
+        return ApiResponse.success(noteService.updateShare(SecurityUtils.currentUser(), id, request), "分享时效已更新");
     }
 
-    @GetMapping("/share/notes/{token}")
+    @DeleteMapping("/api/note-shares/{id}")
+    public ApiResponse<Void> deleteShare(@PathVariable Long id) {
+        noteService.deleteShare(SecurityUtils.currentUser(), id);
+        return ApiResponse.success(null, "分享链接已删除");
+    }
+
+    @GetMapping("/api/share/notes/{token}")
     public ApiResponse<SharedNoteResponse> getSharedNote(@PathVariable String token) {
         return ApiResponse.success(noteService.getSharedNote(token));
     }

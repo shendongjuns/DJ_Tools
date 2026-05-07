@@ -1,30 +1,57 @@
 import { BellOutlined } from '@ant-design/icons';
 import { Badge, Button, Dropdown, List, Typography, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { notificationApi } from '../api/services';
+import { useAuth } from '../store/AuthContext';
 import type { NotificationListResponse } from '../types';
 import { formatDateTime } from '../utils/format';
 
 export function NotificationBell() {
   const [data, setData] = useState<NotificationListResponse>({ unreadCount: 0, items: [] });
   const [messageApi, contextHolder] = message.useMessage();
+  const { token } = useAuth();
 
-  async function loadNotifications() {
-    const result = await notificationApi.list();
-    setData(result);
-  }
+  const loadNotifications = useCallback(async () => {
+    try {
+      const result = await notificationApi.list();
+      setData(result);
+    } catch {
+      // 全局错误弹窗统一处理。
+    }
+  }, []);
 
   useEffect(() => {
     void loadNotifications();
-    const timer = window.setInterval(() => void loadNotifications(), 30000);
+    const timer = window.setInterval(() => {
+      void loadNotifications();
+    }, 15000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    const eventSource = new EventSource(notificationApi.streamUrl(token));
+    eventSource.addEventListener('notification-changed', () => {
+      void loadNotifications();
+    });
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+    return () => eventSource.close();
+  }, [loadNotifications, token]);
 
   return (
     <>
       {contextHolder}
       <Dropdown
         trigger={['click']}
+        onOpenChange={(open) => {
+          if (open) {
+            void loadNotifications();
+          }
+        }}
         dropdownRender={() => (
           <div className="floating-panel">
             <Typography.Title level={5} style={{ marginTop: 0 }}>

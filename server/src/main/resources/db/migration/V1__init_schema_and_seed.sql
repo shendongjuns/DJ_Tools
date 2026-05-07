@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS user_account (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE user_account IS '系统用户账号表，V1 当前默认维护单个本地管理员账号。';
+COMMENT ON TABLE user_account IS '系统用户账号表。';
 COMMENT ON COLUMN user_account.id IS '用户主键 ID。';
 COMMENT ON COLUMN user_account.nickname IS '用户显示昵称。';
 COMMENT ON COLUMN user_account.login_account IS '登录账号，系统内唯一。';
@@ -54,9 +54,6 @@ CREATE TABLE IF NOT EXISTS todo_item (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE todo_item
-    ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 
 COMMENT ON TABLE todo_item IS '待办事项表，保存 TODO 任务主体数据。';
 COMMENT ON COLUMN todo_item.id IS '待办主键 ID。';
@@ -107,7 +104,7 @@ CREATE TABLE IF NOT EXISTS note_folder (
     UNIQUE (user_id, name)
 );
 
-COMMENT ON TABLE note_folder IS '笔记文件夹表，V1 采用单层分类结构。';
+COMMENT ON TABLE note_folder IS '笔记文件夹表。';
 COMMENT ON COLUMN note_folder.id IS '文件夹主键 ID。';
 COMMENT ON COLUMN note_folder.user_id IS '所属用户 ID。';
 COMMENT ON COLUMN note_folder.name IS '文件夹名称，同一用户下唯一。';
@@ -235,14 +232,3 @@ WHERE NOT EXISTS (
     FROM user_account
     WHERE login_account = 'admin'
 );
-
-UPDATE todo_item
-SET remind_at = CASE
-    WHEN due_at IS NULL THEN NULL
-    WHEN status IN ('COMPLETED', 'CANCELLED') THEN NULL
-    WHEN due_at <= CURRENT_TIMESTAMP THEN NULL
-    WHEN due_at <= CURRENT_TIMESTAMP + INTERVAL '1 minute' THEN CURRENT_TIMESTAMP
-    WHEN due_at < CURRENT_TIMESTAMP + INTERVAL '10 minutes' THEN due_at - INTERVAL '1 minute'
-    ELSE due_at - INTERVAL '10 minutes'
-END
-WHERE deleted = FALSE;

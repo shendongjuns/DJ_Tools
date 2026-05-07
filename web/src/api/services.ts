@@ -47,10 +47,11 @@ export const dashboardApi = {
 export const notificationApi = {
   list: () => apiClient.get<NotificationListResponse>('/api/notifications'),
   read: (id: number) => apiClient.put<void>(`/api/notifications/${id}/read`),
+  streamUrl: (token: string) => `/api/notifications/stream?access_token=${encodeURIComponent(token)}`,
 };
 
 export const todoApi = {
-  list: (keyword = '', statuses: TodoStatus[] = ['PENDING', 'IN_PROGRESS']) => {
+  list: (keyword = '', statuses: TodoStatus[] = []) => {
     const searchParams = new URLSearchParams();
     if (keyword) searchParams.set('keyword', keyword);
     if (statuses.length > 0) searchParams.set('statuses', statuses.join(','));
@@ -87,9 +88,11 @@ export const noteApi = {
     return apiClient.post<NoteAttachment>(`/api/notes/${id}/attachments`, formData);
   },
   deleteAttachment: (id: number) => apiClient.delete<void>(`/api/note-attachments/${id}`),
+  attachmentUrl: (id: number) => `/api/note-attachments/${id}/content`,
   createShare: (id: number, expireOption: string) => apiClient.post<NoteShare>(`/api/notes/${id}/share`, { expireOption }),
-  closeShare: (id: number) => apiClient.delete<void>(`/api/note-shares/${id}`),
-  sharedDetail: (token: string) => apiClient.get<SharedNote>(`/share/notes/${token}`),
+  updateShare: (id: number, expireOption: string) => apiClient.put<NoteShare>(`/api/note-shares/${id}`, { expireOption }),
+  deleteShare: (id: number) => apiClient.delete<void>(`/api/note-shares/${id}`),
+  sharedDetail: (token: string) => apiClient.get<SharedNote>(`/api/share/notes/${token}`),
 };
 
 export const searchApi = {

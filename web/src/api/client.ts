@@ -3,6 +3,66 @@ import type { ApiResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
+interface ErrorPayload {
+  message?: string;
+  details?: unknown;
+  detail?: unknown;
+  reason?: unknown;
+  error?: unknown;
+  errors?: unknown;
+}
+
+function stringifyErrorDetail(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stringifyErrorDetail).filter(Boolean).join('；');
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => {
+        const text = stringifyErrorDetail(item);
+        return text ? `${key}：${text}` : null;
+      })
+      .filter(Boolean)
+      .join('；');
+  }
+  return String(value);
+}
+
+function buildErrorMessage(payload?: ErrorPayload) {
+  const message = payload?.message || '请求失败，请稍后重试';
+  const detail =
+    stringifyErrorDetail(payload?.details) ||
+    stringifyErrorDetail(payload?.detail) ||
+    stringifyErrorDetail(payload?.reason) ||
+    stringifyErrorDetail(payload?.error) ||
+    stringifyErrorDetail(payload?.errors);
+  return detail && detail !== message ? `${message}：${detail}` : message;
+}
+
+function notifySystemError(message: string, status?: number, path?: string) {
+  window.dispatchEvent(
+    new CustomEvent('djtools:system-error', {
+      detail: { message, status, path },
+    }),
+  );
+}
+
+async function parsePayload<T>(response: Response, path: string) {
+  try {
+    return (await response.json()) as ApiResponse<T> & ErrorPayload;
+  } catch {
+    const message = '响应解析失败，请稍后重试';
+    notifySystemError(message, response.status, path);
+    throw new Error(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = storage.getToken();
   const headers = new Headers(init?.headers);
@@ -14,22 +74,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    const message = '网络连接失败，请检查服务是否正常运行';
+    notifySystemError(message, undefined, path);
+    throw new Error(message);
+  }
 
   if (response.status === 401) {
+    const message = '认证失败，请重新登录';
+    notifySystemError(message, response.status, path);
     storage.clearToken();
     storage.clearRefreshToken();
     storage.clearProfile();
     window.location.href = '/login';
-    throw new Error('认证失败，请重新登录');
+    throw new Error(message);
   }
 
-  const payload = (await response.json()) as ApiResponse<T> & { message?: string };
+  const payload = await parsePayload<T>(response, path);
   if (!response.ok || !payload.success) {
-    throw new Error(payload.message || '请求失败');
+    const message = buildErrorMessage(payload);
+    notifySystemError(message, response.status, path);
+    throw new Error(message);
   }
   return payload.data;
 }

@@ -52,14 +52,15 @@
         </if>
         ORDER BY
             CASE
-                WHEN status = 'UNFINISHED' THEN 1
-                WHEN status = 'IN_PROGRESS' THEN 2
-                WHEN status = 'PENDING' THEN 3
+                WHEN status = 'IN_PROGRESS' THEN 1
+                WHEN status = 'PENDING' THEN 2
+                WHEN status = 'UNFINISHED' THEN 3
                 WHEN status = 'COMPLETED' THEN 4
                 WHEN status = 'CANCELLED' THEN 5
                 ELSE 6
             END,
-            due_at NULLS LAST,
+            COALESCE(due_at, updated_at, created_at) DESC,
+            updated_at DESC,
             created_at DESC
     </select>
 

@@ -66,7 +66,7 @@ export function AppLayout() {
         <div className="brand-block">
           <AppstoreOutlined />
           <Typography.Title level={4} style={{ margin: 0 }}>
-            DJ Tools
+            个人工作台
           </Typography.Title>
         </div>
         <Menu

@@ -36,6 +36,13 @@
           AND (expires_at IS NULL OR expires_at &gt; CURRENT_TIMESTAMP)
     </select>
 
+    <select id="findById" resultMap="NoteShareResultMap">
+        SELECT *
+        FROM note_share
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </select>
+
     <select id="findActiveByToken" resultMap="NoteShareResultMap">
         SELECT *
         FROM note_share
@@ -44,10 +51,17 @@
           AND (expires_at IS NULL OR expires_at &gt; CURRENT_TIMESTAMP)
     </select>
 
-    <update id="disable">
+    <update id="updateExpiresAt">
         UPDATE note_share
-        SET disabled = TRUE
+        SET expires_at = #{expiresAt},
+            disabled = FALSE
         WHERE id = #{id}
           AND user_id = #{userId}
     </update>
+
+    <delete id="delete">
+        DELETE FROM note_share
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </delete>
 </mapper>

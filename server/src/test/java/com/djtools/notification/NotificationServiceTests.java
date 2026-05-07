@@ -24,6 +24,7 @@ class NotificationServiceTests {
     private NotificationMapper notificationMapper;
     private TodoMapper todoMapper;
     private UserAccountMapper userAccountMapper;
+    private NotificationStreamService notificationStreamService;
     private NotificationService notificationService;
 
     @BeforeEach
@@ -31,7 +32,8 @@ class NotificationServiceTests {
         notificationMapper = org.mockito.Mockito.mock(NotificationMapper.class);
         todoMapper = org.mockito.Mockito.mock(TodoMapper.class);
         userAccountMapper = org.mockito.Mockito.mock(UserAccountMapper.class);
-        notificationService = new NotificationService(notificationMapper, todoMapper, userAccountMapper);
+        notificationStreamService = org.mockito.Mockito.mock(NotificationStreamService.class);
+        notificationService = new NotificationService(notificationMapper, todoMapper, userAccountMapper, notificationStreamService);
     }
 
     @Test
@@ -60,6 +62,7 @@ class NotificationServiceTests {
         verify(notificationMapper).insert(captor.capture());
         assertEquals(REMIND_AT, captor.getValue().getRemindAt());
         assertEquals(99L, captor.getValue().getRelatedId());
+        verify(notificationStreamService).publishChanged(1L);
     }
 
     @Test

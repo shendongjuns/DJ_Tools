@@ -1,5 +1,5 @@
-import { FolderAddOutlined, PlusOutlined } from '@ant-design/icons';
-import { App, Button, Card, Empty, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
+import { FolderAddOutlined, PlusOutlined, TagsOutlined } from '@ant-design/icons';
+import { App, Button, Card, Empty, Form, Input, Modal, Popover, Select, Space, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { noteApi } from '../api/services';
@@ -89,11 +89,22 @@ export function NotesPage() {
               onClick={() => navigate(`/notes/${item.id}`)}
             >
               <Typography.Title level={4}>{item.title}</Typography.Title>
-              <Typography.Paragraph ellipsis={{ rows: 3 }}>{item.summary || '暂无摘要，点击进入详情页查看正文。'}</Typography.Paragraph>
-              <Space wrap>
-                <Tag>{item.folderName || '未分类'}</Tag>
+              <Popover
+                content={<div className="note-popover-content">{item.summary || '暂无摘要，点击进入详情页查看正文。'}</div>}
+                trigger="hover"
+              >
+                <Typography.Paragraph ellipsis={{ rows: 3 }}>{item.summary || '暂无摘要，点击进入详情页查看正文。'}</Typography.Paragraph>
+              </Popover>
+              <Space wrap className="note-card-meta">
+                <Tag color="blue" icon={<FolderAddOutlined />}>{item.folderName || '未分类'}</Tag>
                 {item.shared ? <Tag color="green">已分享</Tag> : null}
-                {item.tags.map((tagItem) => <Tag key={tagItem}>{tagItem}</Tag>)}
+              </Space>
+              <Space wrap className="note-card-tags">
+                {item.tags.length ? item.tags.map((tagItem) => (
+                  <Popover key={tagItem} content={<div className="note-popover-content">标签：{tagItem}</div>} trigger="hover">
+                    <Tag color="purple" icon={<TagsOutlined />}>{tagItem}</Tag>
+                  </Popover>
+                )) : <Tag color="default" icon={<TagsOutlined />}>无标签</Tag>}
               </Space>
               <Typography.Text type="secondary">更新时间：{formatDateTime(item.updatedAt)}</Typography.Text>
             </button>

@@ -1,12 +1,11 @@
-import { DeleteOutlined, DownOutlined, PlusOutlined } from '@ant-design/icons';
-import { App, Button, Card, DatePicker, Dropdown, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
+import { DeleteOutlined, DownOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { App, Button, Card, DatePicker, Dropdown, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { todoApi } from '../api/services';
 import type { TodoItem, TodoStatus } from '../types';
-import { formatDateTime } from '../utils/format';
+import { formatDateTime, formatDuration } from '../utils/format';
 import {
-  DEFAULT_TODO_FILTER_STATUSES,
   TODO_FILTER_STATUS_OPTIONS,
   getTodoStatusColor,
   getTodoStatusLabel,
@@ -26,10 +25,11 @@ interface StatusTimeDialogState {
 export function TodoPage() {
   const [items, setItems] = useState<TodoItem[]>([]);
   const [keyword, setKeyword] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<TodoStatus[]>(DEFAULT_TODO_FILTER_STATUSES);
+  const [selectedStatuses, setSelectedStatuses] = useState<TodoStatus[]>([]);
   const [editing, setEditing] = useState<TodoItem | null>(null);
   const [open, setOpen] = useState(false);
   const [statusTimeDialog, setStatusTimeDialog] = useState<StatusTimeDialogState | null>(null);
+  const [now, setNow] = useState(() => dayjs());
   const [form] = Form.useForm();
   const [statusTimeForm] = Form.useForm();
   const { message } = App.useApp();
@@ -41,6 +41,40 @@ export function TodoPage() {
 
   function needsStatusTime(status: TodoStatus): status is StatusTimeMode {
     return status === 'COMPLETED' || status === 'CANCELLED';
+  }
+
+  function formatCountdownText(dueAt?: string | null, status?: TodoStatus) {
+    if (!dueAt) {
+      return null;
+    }
+    if (status === 'COMPLETED' || status === 'CANCELLED') {
+      return null;
+    }
+    const dueTime = dayjs(dueAt);
+    const diffSeconds = dueTime.diff(now, 'second');
+    const durationText = formatDuration(Math.abs(diffSeconds));
+    if (status === 'UNFINISHED' || diffSeconds < 0) {
+      return { text: `已逾期 ${durationText}`, overdue: true };
+    }
+    if (status === 'PENDING' || status === 'IN_PROGRESS') {
+      return { text: `剩余 ${durationText}`, overdue: false };
+    }
+    return null;
+  }
+
+  function showDeadlineInfo(record: TodoItem) {
+    if (!record.dueAt) {
+      message.info('该任务未设置截止时间');
+      return;
+    }
+    if (record.status === 'COMPLETED' || record.status === 'CANCELLED') {
+      message.info(`截止时间：${formatDateTime(record.dueAt)}`);
+      return;
+    }
+    const dueTime = dayjs(record.dueAt);
+    const diffSeconds = dueTime.diff(now, 'second');
+    const durationText = formatDuration(Math.abs(diffSeconds));
+    message.info(diffSeconds >= 0 ? `距离截止还有：${durationText}` : `已逾期：${durationText}`);
   }
 
   function openStatusTimeModal(state: StatusTimeDialogState) {
@@ -105,6 +139,20 @@ export function TodoPage() {
     void loadTodos();
   }, []);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void loadTodos(keyword, selectedStatuses);
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [keyword, selectedStatuses]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(dayjs());
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
     <Card className="feature-card" title="待办事项">
       <Space wrap style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -135,6 +183,7 @@ export function TodoPage() {
           onClick={() => {
             setEditing(null);
             form.resetFields();
+            form.setFieldsValue({ status: 'PENDING', dueAt: dayjs() });
             setOpen(true);
           }}
         >
@@ -148,7 +197,12 @@ export function TodoPage() {
         scroll={{ x: 1180 }}
         columns={[
           { title: '标题', dataIndex: 'title', width: 200 },
-          { title: '描述', dataIndex: 'description', ellipsis: true },
+          {
+            title: '描述',
+            dataIndex: 'description',
+            ellipsis: true,
+            render: (value?: string) => value?.trim() || '无',
+          },
           {
             title: '状态',
             dataIndex: 'status',
@@ -182,7 +236,24 @@ export function TodoPage() {
               );
             },
           },
-          { title: '截止时间', dataIndex: 'dueAt', width: 180, render: formatDateTime },
+          {
+            title: '截止时间',
+            dataIndex: 'dueAt',
+            width: 220,
+            render: (_, record: TodoItem) => {
+              const countdown = formatCountdownText(record.dueAt, record.status);
+              return (
+                <Button type="link" size="small" className="todo-deadline-button" onClick={() => showDeadlineInfo(record)}>
+                  <Space direction="vertical" size={2} align="start">
+                    <span>{formatDateTime(record.dueAt)}</span>
+                    {countdown ? (
+                      <Typography.Text type={countdown.overdue ? 'danger' : 'secondary'}>{countdown.text}</Typography.Text>
+                    ) : null}
+                  </Space>
+                </Button>
+              );
+            },
+          },
           { title: '完成时间', dataIndex: 'completedAt', width: 180, render: formatDateTime },
           { title: '取消时间', dataIndex: 'cancelledAt', width: 180, render: formatDateTime },
           {
@@ -253,9 +324,6 @@ export function TodoPage() {
           <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入标题' }]}>
             <Input />
           </Form.Item>
-          <Form.Item label="描述" name="description">
-            <Input.TextArea rows={4} />
-          </Form.Item>
           <Form.Item label="状态" name="status" initialValue="PENDING">
             <Select options={TODO_STATUS_OPTIONS_WITH_UNFINISHED} />
           </Form.Item>
@@ -274,16 +342,27 @@ export function TodoPage() {
               );
             }}
           </Form.Item>
-          <Form.Item label="截止时间" name="dueAt">
+          <Form.Item
+            label={
+              <Space size={4}>
+                <span>截止时间</span>
+                <Tooltip title="默认截止前 10 分钟提醒，不足 10 分钟则提前 1 分钟，不足 1 分钟则立即提醒。">
+                  <QuestionCircleOutlined />
+                </Tooltip>
+              </Space>
+            }
+            name="dueAt"
+            rules={[{ required: true, message: '请选择截止时间' }]}
+          >
             <DatePicker
               showTime={{ format: 'HH:mm', showSecond: false }}
               format="YYYY-MM-DD HH:mm"
               style={{ width: '100%' }}
             />
           </Form.Item>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            默认截止前 10 分钟提醒，不足 10 分钟则提前 1 分钟，不足 1 分钟则立即提醒。
-          </Typography.Paragraph>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={4} />
+          </Form.Item>
         </Form>
       </Modal>
 
