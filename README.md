@@ -259,7 +259,7 @@ DOCKER_BUILDKIT=1 docker compose up -d --build
 ```bash
 cd ops
 cp .env.example .env
-# 编辑 .env，替换 POSTGRES_PASSWORD、MINIO_ROOT_PASSWORD、JWT_SECRET、WEB_ORIGIN 等生产配置
+# 编辑 .env，替换 POSTGRES_PASSWORD、MINIO_ROOT_PASSWORD、JWT_SECRET 等生产配置
 docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
@@ -313,10 +313,10 @@ docker compose logs -f web
 默认访问地址：
 
 - 前端：`http://localhost:8088`
-- 后端：`http://localhost:8080`
-- PostgreSQL：`localhost:5432`
-- MinIO API：`http://localhost:9000`
-- MinIO 控制台：`http://localhost:9001`
+- 后端：生产部署默认仅在 Compose 内部网络提供 `http://server:8080`，外部通过前端同源 `/api` 代理访问
+- PostgreSQL：Compose 内部网络 `postgres:5432`
+- MinIO API：Compose 内部网络 `minio:9000`
+- MinIO 控制台：Compose 内部网络 `minio:9001`
 
 ## 环境变量
 
@@ -325,18 +325,15 @@ docker compose logs -f web
 - `GITHUB_REPOSITORY_OWNER`
 - `IMAGE_TAG`
 - `WEB_PORT`
-- `SERVER_PORT`
-- `POSTGRES_PORT`
+- `CORS_ENABLED`
+- `WEB_ORIGIN`
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
-- `MINIO_PORT`
-- `MINIO_CONSOLE_PORT`
 - `MINIO_ROOT_USER`
 - `MINIO_ROOT_PASSWORD`
 - `MINIO_BUCKET`
 - `JWT_SECRET`
-- `WEB_ORIGIN`
 
 生产环境务必修改：
 

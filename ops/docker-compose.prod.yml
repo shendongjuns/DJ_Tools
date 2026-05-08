@@ -12,8 +12,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-djtools}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: Asia/Shanghai
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
@@ -32,9 +30,6 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       TZ: Asia/Shanghai
-    ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - ./data/minio:/data
     healthcheck:
@@ -66,12 +61,11 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-dj-tools-attachments}
+      CORS_ENABLED: ${CORS_ENABLED:-false}
       WEB_ORIGIN: ${WEB_ORIGIN}
       WEB_ORIGIN_DOCKER: http://web
       DOCKER_HOST: unix:///var/run/docker.sock
       LOG_FILE_PATH: /app/logs
-    ports:
-      - "${SERVER_PORT:-8080}:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./logs/server:/app/logs

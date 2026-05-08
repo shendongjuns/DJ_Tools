@@ -72,6 +72,8 @@ management:
 # 自定义业务配置。
 app:
   cors:
+    # 是否开启后端 CORS 校验。Nginx 同源代理生产部署可关闭，前后端跨域部署需开启。
+    enabled: ${CORS_ENABLED:true}
     # 允许访问后端的前端来源地址。
     # 第一个用于本机 Vite 开发环境，第二个用于 Docker Compose 下的 Web 访问地址。
     allowed-origins:
