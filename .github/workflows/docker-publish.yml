@@ -42,7 +42,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.SERVER_IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-,format=short
             type=ref,event=tag
 
       - name: Build and push server image
@@ -64,7 +63,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-,format=short
             type=ref,event=tag
 
       - name: Build and push web image
