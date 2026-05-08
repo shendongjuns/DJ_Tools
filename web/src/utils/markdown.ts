@@ -4,12 +4,13 @@ export interface MarkdownHeading {
   text: string;
   level: number;
   index: number;
+  line: number;
   parentKey?: string;
   ancestorKeys: string[];
   children: MarkdownHeading[];
 }
 
-export function headingId(text: string, _level: number, index: number) {
+export function headingId(text: string, _level?: number, index = 1) {
   const slug = text.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '');
   return slug ? `${slug}-${index}` : `heading-${index}`;
 }
@@ -28,28 +29,28 @@ export function extractMarkdownHeadings(markdown: string): MarkdownHeading[] {
   let inFence = false;
   let headingIndex = 0;
 
-  for (const line of markdown.split('\n')) {
+  markdown.split('\n').forEach((line, lineIndex) => {
     if (/^\s*(```|~~~)/.test(line)) {
       inFence = !inFence;
-      continue;
+      return;
     }
     if (inFence) {
-      continue;
+      return;
     }
 
     const match = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
     if (!match) {
-      continue;
+      return;
     }
 
     const level = match[1].length;
     const text = cleanHeadingText(match[2]);
     if (!text) {
-      continue;
+      return;
     }
 
-    const index = headingIndex;
-    const key = `${level}-${index}`;
+    const index = headingIndex + 1;
+    const key = `${level}-${headingIndex}`;
     const parent = [...stack].reverse().find((item) => item.level < level);
     const ancestorKeys = parent ? [...parent.ancestorKeys, parent.key] : [];
     const heading: MarkdownHeading = {
@@ -58,6 +59,7 @@ export function extractMarkdownHeadings(markdown: string): MarkdownHeading[] {
       text,
       level,
       index,
+      line: lineIndex,
       parentKey: parent?.key,
       ancestorKeys,
       children: [],
@@ -78,7 +80,7 @@ export function extractMarkdownHeadings(markdown: string): MarkdownHeading[] {
 
     stack.push(heading);
     headingIndex += 1;
-  }
+  });
 
   return roots;
 }

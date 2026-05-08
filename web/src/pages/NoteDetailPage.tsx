@@ -417,7 +417,7 @@ export function NoteDetailPage() {
                   />
                 ) : (
                   <div className="note-reader-layout">
-                    <div className="preview-shell note-reader-scroll" id={`${editorId}-preview`}>
+                    <div className="preview-shell note-reader-scroll" id={`${editorId}-preview-scroll`}>
                       <MdPreview editorId={editorId} modelValue={content} mdHeadingId={headingId} />
                     </div>
                     <aside className="note-reader-catalog" aria-label="目录">
@@ -434,7 +434,7 @@ export function NoteDetailPage() {
                       </div>
                       <MarkdownCatalog
                         content={content}
-                        scrollElementId={`${editorId}-preview`}
+                        scrollElementId={`${editorId}-preview-scroll`}
                         offsetTop={18}
                         scrollOffset={12}
                       />
