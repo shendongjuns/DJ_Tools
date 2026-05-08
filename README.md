@@ -240,11 +240,52 @@ Vite 默认代理：
 
 ## Docker Compose 部署
 
-### 启动
+### 本地构建启动
 
 ```bash
 cd ops
 DOCKER_BUILDKIT=1 docker compose up -d --build
+```
+
+### 使用已发布镜像部署
+
+项目可通过 GitHub Actions 将前后端镜像发布到 GitHub Container Registry：
+
+- `ghcr.io/<owner>/dj-tools-server:<tag>`
+- `ghcr.io/<owner>/dj-tools-web:<tag>`
+
+生产服务器部署步骤：
+
+```bash
+cd ops
+cp .env.example .env
+# 编辑 .env，替换 POSTGRES_PASSWORD、MINIO_ROOT_PASSWORD、JWT_SECRET、WEB_ORIGIN 等生产配置
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+```
+
+如 GHCR package 设置为私有，需要先在服务器登录：
+
+```bash
+docker login ghcr.io
+```
+
+### Vercel 与免费部署说明
+
+Vercel 适合部署 `web/` 静态前端，但不适合直接运行本项目完整后端栈。当前后端是长期运行的 Spring Boot 服务，并依赖 PostgreSQL、MinIO，以及可选 Docker Socket 容器监控能力。
+
+如果只将前端部署到 Vercel：
+
+- 在 Vercel 导入 GitHub 仓库，Root Directory 选择 `web`。
+- 设置环境变量 `VITE_API_BASE_URL=https://api.your-domain.example`。
+- 后端、PostgreSQL、MinIO 仍需部署到其他平台。
+
+Render、Fly.io、Railway、Koyeb 等平台可以试用免费额度部署部分服务，但通常存在休眠、持久化存储、带宽、区域或数据库额度限制。包含 PostgreSQL 和 MinIO 的完整应用更推荐部署到 VPS 或自有主机，并使用 Docker Compose 管理。
+
+### 手动构建镜像
+
+```bash
+docker build -f server/Dockerfile -t ghcr.io/<owner>/dj-tools-server:local .
+docker build -f web/Dockerfile -t ghcr.io/<owner>/dj-tools-web:local .
 ```
 
 ### 停止
@@ -279,8 +320,10 @@ docker compose logs -f web
 
 ## 环境变量
 
-常用环境变量位于 `ops/.env`：
+常用环境变量位于 `ops/.env`，生产环境可复制 `ops/.env.example` 后修改：
 
+- `GITHUB_REPOSITORY_OWNER`
+- `IMAGE_TAG`
 - `WEB_PORT`
 - `SERVER_PORT`
 - `POSTGRES_PORT`
@@ -293,6 +336,7 @@ docker compose logs -f web
 - `MINIO_ROOT_PASSWORD`
 - `MINIO_BUCKET`
 - `JWT_SECRET`
+- `WEB_ORIGIN`
 
 生产环境务必修改：
 
