@@ -154,21 +154,21 @@ export function TodoPage() {
   }, []);
 
   return (
-    <Card className="feature-card" title="待办事项">
-      <Space wrap style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Space wrap>
+    <Card className="feature-card todo-card" title="待办事项">
+      <Space wrap className="todo-toolbar">
+        <Space wrap className="todo-filters">
           <Input.Search
+            className="todo-search"
             placeholder="搜索任务标题或描述"
-            style={{ width: 320 }}
             allowClear
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             onSearch={(value) => void loadTodos(value, selectedStatuses)}
           />
           <Select
+            className="todo-status-filter"
             mode="multiple"
             value={selectedStatuses}
-            style={{ minWidth: 260 }}
             placeholder="按状态筛选"
             options={TODO_FILTER_STATUS_OPTIONS}
             onChange={(values: TodoStatus[]) => {
@@ -192,6 +192,7 @@ export function TodoPage() {
       </Space>
 
       <Table
+        className="todo-table"
         rowKey="id"
         dataSource={items}
         scroll={{ x: 1180 }}
