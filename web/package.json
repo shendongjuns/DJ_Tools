@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "engines": {
-    "node": ">=25.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

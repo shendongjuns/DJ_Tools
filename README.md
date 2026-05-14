@@ -165,7 +165,7 @@ DJ_Tools
 │   │   ├── styles/         全局样式
 │   │   ├── theme/          主题预设 JSON
 │   │   └── utils/          工具函数
-│   ├── Dockerfile          Node 25 构建 → Nginx 托管
+│   ├── Dockerfile          Node 24 构建 → Nginx 托管
 │   └── package.json
 │
 ├── server/                 后端 Spring Boot

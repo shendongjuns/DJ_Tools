@@ -6,7 +6,7 @@
 |------|----------|------|
 | Java | 21 | 后端编译与运行 |
 | Maven | 3.9+ | 后端构建（系统 `mvn`） |
-| Node.js | 25+ | 前端编译与运行 |
+| Node.js | 24+ | 前端编译与运行 |
 | npm | 10+ | 前端包管理 |
 | Docker | 26+ | 本地运行 PostgreSQL 和 MinIO |
 | Docker Compose | 2+ | 编排基础设施容器 |

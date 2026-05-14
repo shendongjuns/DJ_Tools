@@ -163,7 +163,7 @@ server/src/main/resources/
 ### 前端 Dockerfile（`web/Dockerfile`）
 
 两阶段构建：
-1. **builder**：Node 25 Alpine，`npm install` → `npm run build`
+1. **builder**：Node 24 Alpine，`npm install` → `npm run build`
 2. **runtime**：Nginx 1.29 Alpine，托管 `dist/` + 挂载 `default.conf`
 
 ### 镜像发布

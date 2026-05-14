@@ -31,7 +31,7 @@ npm run build
 npm run preview
 ```
 
-- Node.js 要求：`>=25.0.0`。
+- Node.js 要求：`>=24.0.0`。
 - 开发服务器：`http://localhost:5173`。
 - `npm run build` 会执行 `tsc -b && vite build`。
 - 当前没有前端 lint 或 test 脚本。
@@ -133,4 +133,4 @@ docker compose logs -f web
 - 常用部署环境变量记录在 `README.md` 并由 `ops/docker-compose.yml` 使用；生产部署必须覆盖默认数据库、MinIO 和 JWT 密钥。
 - `ops/docker-compose.yml` 定义 `postgres`、`minio`、`server` 和 `web` 四个服务。
 - `server` 服务只读挂载 `/var/run/docker.sock` 用于容器指标采集；Docker Socket 不可用时，后端会跳过容器指标采集。
-- `web` Docker 镜像使用 Node 25 构建 Vite 应用，并通过 Nginx 和 `ops/nginx/default.conf` 托管 `dist/`。
+- `web` Docker 镜像使用 Node 24 构建 Vite 应用，并通过 Nginx 和 `ops/nginx/default.conf` 托管 `dist/`。
