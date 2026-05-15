@@ -263,7 +263,7 @@ docker compose down
 | GET | `/api/notifications` | 通知列表 |
 | PUT | `/api/notifications/{id}/read` | 标记已读 |
 
-### TODO
+### 待办
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
