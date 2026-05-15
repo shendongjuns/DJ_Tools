@@ -803,7 +803,7 @@ html[data-theme='dark'] .user-menu-name {
 .note-markdown-editor {
   width: 100%;
   max-width: 100%;
-  height: clamp(380px, calc(100vh - 370px), 560px) !important;
+  height: clamp(420px, calc(100vh - 200px), 85vh) !important;
   min-width: 0;
 }
 
@@ -1243,7 +1243,7 @@ html[data-theme='dark'] .user-menu-name {
 
   .note-markdown-editor {
     height: 58vh !important;
-    min-height: 380px;
+    min-height: 420px;
   }
 }
 

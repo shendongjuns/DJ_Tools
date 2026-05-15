@@ -412,7 +412,7 @@ export function NoteDetailPage() {
                     onChange={(value) => form.setFieldValue('content', value)}
                     onUploadImg={handleUploadMarkdownImages}
                     catalogLayout="flat"
-                    toolbarsExclude={['github']}
+                    toolbarsExclude={['github', 'fullscreen', 'pageFullscreen']}
                     className="note-markdown-editor"
                   />
                 ) : (
